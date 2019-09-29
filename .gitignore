@@ -1,3 +1,6 @@
 *.bak
 modelsim
 quartus
+.library_mapping.xml
+.project
+.settings
