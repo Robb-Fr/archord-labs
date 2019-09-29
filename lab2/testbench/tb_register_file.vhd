@@ -9,6 +9,20 @@ architecture bench of tb_register_file is
 
     -- declaration of register_file interface
     -- INSERT COMPONENT DECLARATION HERE
+    
+    component register_file
+    	port(
+    		clk    : in  std_logic;
+    		aa     : in  std_logic_vector(4 downto 0);
+    		ab     : in  std_logic_vector(4 downto 0);
+    		aw     : in  std_logic_vector(4 downto 0);
+    		wren   : in  std_logic;
+    		wrdata : in  std_logic_vector(31 downto 0);
+    		a      : out std_logic_vector(31 downto 0);
+    		b      : out std_logic_vector(31 downto 0)
+    	);
+    end component register_file;
+
 
     signal aa, ab, aw   : std_logic_vector(4 downto 0);
     signal a, b, wrdata : std_logic_vector(31 downto 0);
@@ -22,6 +36,19 @@ begin
 
     -- register_file instance
     -- INSERT REGISTER FILE INSTANCE HERE
+    
+    reg : register_file
+    	port map(
+    		clk    => clk,
+    		aa     => aa,
+    		ab     => ab,
+    		aw     => aw,
+    		wren   => wren,
+    		wrdata => wrdata,
+    		a      => a,
+    		b      => b
+    	);
+   
 
     clock_gen : process
     begin
@@ -51,10 +78,18 @@ begin
             aw     <= std_logic_vector(to_unsigned(i, 5));
             wrdata <= std_logic_vector(to_unsigned(i + 1, 32));
             wait for CLK_PERIOD;
+            
         end loop;
 
         -- read in the register file
         -- INSERT CODE THAT READS THE REGISTER FILE HERE
+        for i in 0 to 31 loop
+            -- std_logic_vector(to_unsigned(number, bitwidth))
+            aa <= std_logic_vector(to_unsigned(i, 5));
+            assert a =  std_logic_vector(to_unsigned(i + 1, 32)) report "wrong value in register" severity error;
+            wait for CLK_PERIOD;
+        end loop;
+        
 
         stop <= '1';
         wait;

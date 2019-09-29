@@ -16,5 +16,21 @@ entity register_file is
 end register_file;
 
 architecture synth of register_file is
+type reg_type is array(0 to 31) of std_logic_vector(31 downto 0);
+signal reg: reg_type;
+
 begin
+	reg(to_integer(unsigned(0))) <= (others => '0');
+	write : process (clk) is
+	begin
+		if rising_edge(clk) then
+			if wren = '1' and aw /= "00000" then
+				reg(to_integer(unsigned(aw))) <= wrdata;
+			end if;
+		end if;
+	end process write;
+	
+	a <= reg(to_integer(unsigned(aa)));
+	b <= reg(to_integer(unsigned(ab)));
+	
 end synth;
