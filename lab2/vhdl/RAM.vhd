@@ -23,31 +23,31 @@ begin
 
 	rddata <= rd_selected when cs_FF = '1' else (others => 'Z');
 
-	address_val : process(clk) is
+	rd_selected <= ram(to_integer(unsigned(address_FF)));
+
+	cs_address : process(clk) is
 	begin
 		if rising_edge(clk) then
+			cs_FF      <= read and cs;
 			address_FF <= address;
 		end if;
 	end process;
 
-	cs_val : process(clk) is
+	read_sel : process(cs_FF, rd_selected) is
+	begin
+		if cs_FF = '1' then
+			rddata <= rd_selected;
+		else
+			rddata <= (others => 'Z');
+		end if;
+	end process;
+
+	write_proc : process(clk) is
 	begin
 		if rising_edge(clk) then
-			cs_FF <= read and cs;
-		end if;
-	end process;
-
-	read_sel : process(clk, cs_FF) is
-	begin
-		if rising_edge(clk) and cs_FF = '1' then
-			rd_selected <= ram(to_integer(unsigned(address_FF)));
-		end if;
-	end process;
-
-	write_proc : process(clk, cs, write) is
-	begin
-		if write = '1' and cs = '1' and rising_edge(clk) then
-			ram(to_integer(unsigned(address))) <= wrdata;
+			if write = '1' and cs = '1' then
+				ram(to_integer(unsigned(address))) <= wrdata;
+			end if;
 		end if;
 	end process;
 

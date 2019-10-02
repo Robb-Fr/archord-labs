@@ -21,7 +21,7 @@ signal reg: reg_type;
 
 begin
 	reg(0) <= (others => '0');
-	write : process (clk) is
+	write : process (clk, wren) is
 	begin
 		if rising_edge(clk) and wren = '1' then
 				reg(to_integer(unsigned(aw))) <= wrdata;
