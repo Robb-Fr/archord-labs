@@ -1,6 +1,5 @@
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
 
 entity decoder is
 	port(
@@ -12,10 +11,20 @@ entity decoder is
 end decoder;
 architecture synth of decoder is
 begin
-	cs_LEDS <= '1' when (unsigned(address) <= unsigned(x"200C")) and (unsigned(address) >= unsigned(x"2000")) else '0';
 
-	cs_RAM <= '1' when (unsigned(address) <= unsigned(x"1FFC")) and (unsigned(address) >= unsigned(x"1000")) else '0';
+	check : process (address)
+	begin
+		cs_LEDS <= '0';
+		cs_ROM  <= '0';
+		cs_RAM  <= '0';
 
-	cs_ROM <= '1' when (unsigned(address) <= unsigned(x"0FFC")) and (unsigned(address) >= unsigned(x"0000")) else '0';
+		if address <= X"0FFC" then
+			cs_ROM <= '1';
+		elsif address >= X"1000" and address <= X"1FFC" then
+			cs_RAM <= '1';
+		elsif address >= X"2000" and address <= X"200C" then
+			cs_LEDS <= '1';
+		end if;
+	end process;
 
 end synth;

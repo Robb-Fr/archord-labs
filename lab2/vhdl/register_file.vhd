@@ -23,11 +23,10 @@ begin
 	reg(0) <= (others => '0');
 	write : process (clk) is
 	begin
-		if rising_edge(clk) then
-			if wren = '1' and aw /= "00000" then
+		if rising_edge(clk) and wren = '1' then
 				reg(to_integer(unsigned(aw))) <= wrdata;
-			end if;
 		end if;
+		reg(0) <= (others => '0');
 	end process write;
 	
 	a <= reg(to_integer(unsigned(aa)));
