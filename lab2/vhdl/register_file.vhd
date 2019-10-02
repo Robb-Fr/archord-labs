@@ -20,7 +20,7 @@ type reg_type is array(0 to 31) of std_logic_vector(31 downto 0);
 signal reg: reg_type;
 
 begin
-	reg(to_integer(unsigned(0))) <= (others => '0');
+	reg(0) <= (others => '0');
 	write : process (clk) is
 	begin
 		if rising_edge(clk) then
