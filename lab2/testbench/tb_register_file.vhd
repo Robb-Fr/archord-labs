@@ -86,7 +86,7 @@ begin
         for i in 0 to 31 loop
             -- std_logic_vector(to_unsigned(number, bitwidth))
             aa <= std_logic_vector(to_unsigned(i, 5));
-            assert a =  std_logic_vector(to_unsigned(i + 1, 32)) report "wrong value in register" severity error;
+            assert a =  std_logic_vector(to_unsigned(i + 1, 32)) report "wrong value in register : expected "&integer'image(i + 1)&"; But was : "&integer'image(to_integer(unsigned(a))) severity error;
             wait for CLK_PERIOD;
         end loop;
         

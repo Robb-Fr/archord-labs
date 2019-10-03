@@ -71,7 +71,7 @@ begin
             address <= std_logic_vector(to_unsigned(i * 4, 16) + X"2000");
             wait for CLK_PERIOD;
             ASSERT rddata = (std_logic_vector(to_unsigned(i, 32) + X"AA55AA54"))
-                REPORT "Did not read or write correctly in LEDs"
+                REPORT "Did not read or write correctly in LEDs : expected : "&integer'image(i + to_integer(unsigned(X"AA55AA54")))&"; But was : "&integer'image(to_integer(unsigned(rddata)))
                 SEVERITY ERROR;
         end loop;
         read <= '0';
@@ -91,7 +91,7 @@ begin
             address <= std_logic_vector(to_unsigned(i * 4, 16) + X"1000");
             wait for CLK_PERIOD;
             ASSERT rddata = (std_logic_vector(to_unsigned(i, 32) + X"AAAA0000"))
-                REPORT "Did not read or write correctly in RAM"
+                REPORT "Did not read or write correctly in RAM : expected : "&integer'image(i + to_integer(unsigned(X"AAAA0000")))&"; But was : "&integer'image(to_integer(unsigned(rddata)))
                 SEVERITY ERROR;
         end loop;
 
