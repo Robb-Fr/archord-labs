@@ -104,9 +104,9 @@ begin
 
 	compute_op_alu : process (op, opx) is
 	begin
-		if op = X"3A" and opx = X"0E" then
+		if "00"&op = X"3A" and "00"&opx = X"0E" then
 			op_alu <= and_op;
-		elsif op = X"3A" and opx = X"1B" then
+		elsif "00"&op = X"3A" and "00"&opx = X"1B" then
 			op_alu <= srl_op;
 		else
 			op_alu <= add_op;           -- default state 
@@ -123,15 +123,15 @@ begin
 			when FETCH2 =>
 				nextState <= DECODE;
 			when DECODE =>
-				if op = X"3A" and opx /= X"34" then
+				if "00"&op = X"3A" and "00"&opx /= X"34" then
 					nextState <= R_OP;
-				elsif opx = X"34" then
+				elsif "00"&opx = X"34" then
 					nextState <= BREAK;
-				elsif op = X"04" then
+				elsif "00"&op = X"04" then
 					nextState <= I_OP;
-				elsif op = X"17" then
+				elsif "00"&op = X"17" then
 					nextState <= LOAD1;
-				elsif op = X"15" then
+				elsif "00"&op = X"15" then
 					nextState <= STORE;
 				end if;
 			when R_OP =>
