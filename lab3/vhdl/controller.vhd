@@ -48,7 +48,7 @@ architecture synth of controller is
 begin
 
 	-- process that outputs the correct control signals depending on the state
-	compute_control_signals : process is
+	compute_control_signals : process (currState) is
 	begin
 		branch_op  <= '0';
 		imm_signed <= '0';
@@ -63,7 +63,7 @@ begin
 		sel_mem    <= '0';
 		sel_pc     <= '0';
 		sel_ra     <= '0';
-		sel_rc     <= '0';
+		sel_rC     <= '0';
 		read       <= '0';
 		write      <= '0';
 
@@ -81,7 +81,7 @@ begin
 				write   <= '1';
 				rf_wren <= '1';
 			when BREAK =>
-				sel_rc <= '1';
+				sel_rC <= '1';
 			when LOAD1 =>
 				read     <= '1';
 				sel_addr <= '1';
@@ -115,7 +115,7 @@ begin
 	end process compute_op_alu;
 
 	-- computes the next state and decodes the op and opx for adequate choice
-	compute_next_state : process is
+	compute_next_state : process (currState, op, opx) is
 	begin
 		case currState is
 			when FETCH1 =>
