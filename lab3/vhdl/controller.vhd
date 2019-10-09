@@ -102,7 +102,7 @@ begin
 		end if;
 	end process state_DFF;
 
-	compute_op_alu : process is
+	compute_op_alu : process (op, opx) is
 	begin
 		if op = X"3A" and opx = X"0E" then
 			op_alu <= and_op;
