@@ -90,6 +90,7 @@ begin
 				imm_signed <= '1';
 			when LOAD2 =>
 				sel_mem <= '1';
+				rf_wren <= '1';
 			when I_OP =>
 				imm_signed <= '1';      -- currently there's ony I_OP operation and it is signed
 				rf_wren    <= '1';
