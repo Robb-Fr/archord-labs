@@ -75,20 +75,24 @@ begin
 				ir_en <= '1';
 			when DECODE => null;
 			when R_OP =>
-				sel_b  <= '1';
-				sel_rC <= '1';
-			when STORE =>
-				write   <= '1';
+				sel_b   <= '1';
+				sel_rC  <= '1';
 				rf_wren <= '1';
+			when STORE =>
+				write      <= '1';
+				imm_signed <= '1';
+				sel_addr   <= '1';
 			when BREAK =>
 				sel_rC <= '1';
 			when LOAD1 =>
-				read     <= '1';
-				sel_addr <= '1';
+				read       <= '1';
+				sel_addr   <= '1';
+				imm_signed <= '1';
 			when LOAD2 =>
 				sel_mem <= '1';
 			when I_OP =>
-				imm_signed <= '1';      -- currently there's ony I_OP operation and it is signed				
+				imm_signed <= '1';      -- currently there's ony I_OP operation and it is signed
+				rf_wren    <= '1';
 		end case;
 
 	end process compute_control_signals;
@@ -102,11 +106,11 @@ begin
 		end if;
 	end process state_DFF;
 
-	compute_op_alu : process (op, opx) is
+	compute_op_alu : process(op, opx) is
 	begin
-		if "00"&op = X"3A" and "00"&opx = X"0E" then
+		if "00" & op = X"3A" and "00" & opx = X"0E" then
 			op_alu <= and_op;
-		elsif "00"&op = X"3A" and "00"&opx = X"1B" then
+		elsif "00" & op = X"3A" and "00" & opx = X"1B" then
 			op_alu <= srl_op;
 		else
 			op_alu <= add_op;           -- default state 
@@ -123,15 +127,15 @@ begin
 			when FETCH2 =>
 				nextState <= DECODE;
 			when DECODE =>
-				if "00"&op = X"3A" and "00"&opx /= X"34" then
+				if "00" & op = X"3A" and "00" & opx /= X"34" then
 					nextState <= R_OP;
-				elsif "00"&opx = X"34" then
+				elsif "00" & opx = X"34" then
 					nextState <= BREAK;
-				elsif "00"&op = X"04" then
+				elsif "00" & op = X"04" then
 					nextState <= I_OP;
-				elsif "00"&op = X"17" then
+				elsif "00" & op = X"17" then
 					nextState <= LOAD1;
-				elsif "00"&op = X"15" then
+				elsif "00" & op = X"15" then
 					nextState <= STORE;
 				end if;
 			when R_OP =>
