@@ -48,7 +48,7 @@ architecture synth of controller is
 begin
 
 	-- process that outputs the correct control signals depending on the state
-	compute_control_signals : process (currState) is
+	compute_control_signals : process(currState) is
 	begin
 		branch_op  <= '0';
 		imm_signed <= '0';
@@ -95,7 +95,7 @@ begin
 
 	state_DFF : process(clk, reset_n) is
 	begin
-		if reset_n = '1' then
+		if reset_n = '0' then
 			currState <= FETCH1;
 		elsif rising_edge(clk) then
 			currState <= nextState;
@@ -115,7 +115,7 @@ begin
 	end process compute_op_alu;
 
 	-- computes the next state and decodes the op and opx for adequate choice
-	compute_next_state : process (currState, op, opx) is
+	compute_next_state : process(currState, op, opx) is
 	begin
 		case currState is
 			when FETCH1 =>
