@@ -15,8 +15,156 @@ entity controller is
 end controller;
 
 architecture synth of controller is
+
+	component FSM
+		port(
+			clk                : in  std_logic;
+			reset_n            : in  std_logic;
+			length_is_zero     : in  std_logic;
+			rddata_low_is_zero : in  std_logic;
+			read               : out std_logic;
+			write              : out std_logic;
+			sel_ROMaddr        : out std_logic;
+			sel_rdaddr         : out std_logic;
+			sel_wraddr         : out std_logic;
+			ROMaddr_inc        : out std_logic;
+			rdaddr_load        : out std_logic;
+			rdaddr_inc         : out std_logic;
+			wraddr_load        : out std_logic;
+			wraddr_inc         : out std_logic;
+			length_load        : out std_logic;
+			length_dec         : out std_logic
+		);
+	end component FSM;
+
+	signal length_dec, length_load, length_is_zero, rddata_low_is_zero, ROMaddr_inc                 : std_logic;
+	signal wraddr_inc, wraddr_load, rdaddr_inc, rdaddr_load, sel_ROMaddr, sel_wraddr, sel_rdaddr    : std_logic;
+	signal length, ROMaddr, wraddr, rdaddr, length_inter, wraddr_inter, rdaddr_inter, ROMaddr_inter : std_logic_vector(15 downto 0);
+
 begin
+	Pigalle : component FSM
+		port map(
+			clk                => clk,
+			reset_n            => reset_n,
+			length_is_zero     => length_is_zero,
+			rddata_low_is_zero => rddata_low_is_zero,
+			read               => read,
+			write              => write,
+			sel_ROMaddr        => sel_ROMaddr,
+			sel_rdaddr         => sel_rdaddr,
+			sel_wraddr         => sel_wraddr,
+			ROMaddr_inc        => ROMaddr_inc,
+			rdaddr_load        => rdaddr_load,
+			rdaddr_inc         => rdaddr_inc,
+			wraddr_load        => wraddr_load,
+			wraddr_inc         => wraddr_inc,
+			length_load        => length_load,
+			length_dec         => length_dec
+		);
+	-- verifies that length is not zero 
+	length_is_zero     <= '1' when length = X"0000" else '0';
+	rddata_low_is_zero <= '1' when rddata(15 downto 0) = X"0000" else '0';
+	wrdata             <= rddata;
+
+	compute : process is
+	begin
+		-- Computes the next length 
+		length_inter <= length;
+		if length_dec = '1' then
+			length_inter <= std_logic_vector(unsigned(length) - 1);
+		elsif length_load = '1' then
+			length_inter <= rddata(15 downto 0);
+		end if;
+
+		-- Computes the next write address
+		wraddr_inter <= wraddr;
+		if wraddr_inc = '1' then
+			wraddr_inter <= std_logic_vector(unsigned(wraddr) + 4);
+		elsif wraddr_load = '1' then
+			wraddr_inter <= rddata(15 downto 0);
+		end if;
+
+		-- Computes the next read address 
+		rdaddr_inter <= rdaddr;
+		if rdaddr_inc = '1' then
+			rdaddr_inter <= std_logic_vector(unsigned(rdaddr) + 4);
+		elsif rdaddr_load = '1' then
+			rdaddr_inter <= rddata(31 downto 16);
+		end if;
+
+	end process compute;
+
+	-- Manages the length output and enables its change
+	length_output : process(clk, reset_n) is
+	begin
+		if reset_n = '1' then
+			length <= X"0000";
+		elsif rising_edge(clk) then
+			-- enable condition
+			if length_dec = '1' or length_load = '1' then
+				length <= length_inter;
+			end if;
+		end if;
+	end process length_output;
+
+	-- Manages the write address output and enables its change
+	wraddr_output : process(clk, reset_n) is
+	begin
+		if reset_n = '1' then
+			wraddr <= X"0000";
+		elsif rising_edge(clk) then
+			-- enable condition
+			if wraddr_inc = '1' or wraddr_load = '1' then
+				wraddr <= wraddr_inter;
+			end if;
+		end if;
+	end process wraddr_output;
+
+	-- Manages the write address output and enables its change
+	rdaddr_output : process(clk, reset_n) is
+	begin
+		if reset_n = '1' then
+			rdaddr <= X"0000";
+		elsif rising_edge(clk) then
+			-- enable condition
+			if rdaddr_inc = '1' or rdaddr_load = '1' then
+				rdaddr <= rdaddr_inter;
+			end if;
+		end if;
+	end process rdaddr_output;
+
+	name : process(clk, reset_n, ROMaddr) is
+	begin
+		ROMaddr_inter <= std_logic_vector(unsigned(ROMaddr) + 4);
+		if reset_n = '1' then
+			ROMaddr <= X"0000";
+		elsif rising_edge(clk) then
+			-- enable condition 
+			if ROMaddr_inc = '1' then
+				ROMaddr <= ROMaddr_inter;
+			end if;
+		end if;
+	end process name;
+
+	-- Decides which address to output between Rom, write and read
+	address_output : process(sel_ROMaddr, sel_wraddr, sel_rdaddr, ROMaddr, rdaddr, wraddr) is
+	begin
+		address <= X"0000";
+
+		if sel_ROMaddr = '1' then
+			address <= ROMaddr;
+
+		elsif sel_wraddr = '1' then
+			address <= wraddr;
+
+		elsif sel_rdaddr = '1' then
+			address <= rdaddr;
+		end if;
+	end process address_output;
+
 end synth;
+
+-- Finite State Machine which manages whether we are reading, incrementing or writing
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -47,7 +195,7 @@ architecture boulogne of FSM is
 	signal cur : state;
 	signal nex : state;
 begin
-	dff : process (clk, reset_n) is
+	dff : process(clk, reset_n) is
 	begin
 		if reset_n = '0' then
 			read        <= '0';
@@ -68,7 +216,7 @@ begin
 		end if;
 	end process;
 
-	next_state : process (cur, length_is_zero, rddata_low_is_zero) is
+	next_state : process(cur, length_is_zero, rddata_low_is_zero) is
 	begin
 		read        <= '0';
 		write       <= '0';
