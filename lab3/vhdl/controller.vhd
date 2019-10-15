@@ -9,13 +9,13 @@ entity controller is
 		op         : in  std_logic_vector(5 downto 0);
 		opx        : in  std_logic_vector(5 downto 0);
 		-- activates branch condition
-		branch_op  : out std_logic;     --n
+		branch_op  : out std_logic;
 		-- immediate value sign extention
 		imm_signed : out std_logic;
 		-- instruction register enable
 		ir_en      : out std_logic;
 		-- PC control signals
-		pc_add_imm : out std_logic;     --n
+		pc_add_imm : out std_logic;
 		pc_en      : out std_logic;     --n
 		pc_sel_a   : out std_logic;     --n
 		pc_sel_imm : out std_logic;     --n
@@ -38,12 +38,18 @@ end controller;
 
 architecture synth of controller is
 	-- state of the controller fsm
-	type state is (FETCH1, FETCH2, DECODE, R_OP, STORE, BREAK, LOAD1, LOAD2, I_OP);
+	type state is (FETCH1, FETCH2, DECODE, R_OP, STORE, BREAK, LOAD1, LOAD2, I_OP, BRANCH, CALL, CALLR, JUMP, JUMPI);
 	signal currState, nextState : state;
 	-- constant for alu op codes 
 	constant and_op             : std_logic_vector(5 downto 0) := "100001";
 	constant srl_op             : std_logic_vector(5 downto 0) := "110011";
 	constant add_op             : std_logic_vector(5 downto 0) := "000000";
+	constant leqsi_op           : std_logic_vector(5 downto 0) := "011001";
+	constant bigsi_op           : std_logic_vector(5 downto 0) := "011010";
+	constant diff_op            : std_logic_vector(5 downto 0) := "011011";
+	constant eq_op              : std_logic_vector(5 downto 0) := "011100";
+	constant lequ_op            : std_logic_vector(5 downto 0) := "011101";
+	constant bigu_op            : std_logic_vector(5 downto 0) := "011110";
 
 begin
 
@@ -94,6 +100,28 @@ begin
 			when I_OP =>
 				imm_signed <= '1';      -- currently there's ony I_OP operation and it is signed
 				rf_wren    <= '1';
+			when BRANCH =>
+				branch_op  <= '1';
+				pc_add_imm <= '1';
+				sel_b      <= '1';
+			when CALL =>
+				rf_wren    <= '1';
+				sel_pc     <= '1';
+				sel_ra     <= '1';
+				pc_en      <= '1';
+				pc_sel_imm <= '1';
+			when CALLR =>
+				rf_wren  <= '1';
+				sel_pc   <= '1';
+				sel_ra   <= '1';
+				pc_en    <= '1';
+				pc_sel_a <= '1';
+			when JUMP =>
+				pc_en    <= '1';
+				pc_sel_a <= '1';
+			when JUMPI =>
+				pc_en      <= '1';
+				pc_sel_imm <= '1';
 		end case;
 
 	end process compute_control_signals;
@@ -113,6 +141,20 @@ begin
 			op_alu <= and_op;
 		elsif "00" & op = X"3A" and "00" & opx = X"1B" then
 			op_alu <= srl_op;
+		elsif "00" & op = X"06" then
+		-- must do unconditional branch
+		elsif "00" & op = X"0E" then
+			op_alu <= leqsi_op;
+		elsif "00" & op = X"016" then
+			op_alu <= bigsi_op;
+		elsif "00" & op = X"1E" then
+			op_alu <= diff_op;
+		elsif "00" & op = X"26" then
+			op_alu <= eq_op;
+		elsif "00" & op = X"2E" then
+			op_alu <= lequ_op;
+		elsif "00" & op = X"36" then
+			op_alu <= bigu_op;
 		else
 			op_alu <= add_op;           -- default state 
 		end if;
@@ -128,9 +170,9 @@ begin
 			when FETCH2 =>
 				nextState <= DECODE;
 			when DECODE =>
-				if "00" & op = X"3A" and "00" & opx /= X"34" then
+				if "00" & op = X"3A" and ("00" & opx = X"0E" or "00" & opx = X"1B") then
 					nextState <= R_OP;
-				elsif "00" & opx = X"34" then
+				elsif "00" & op = X"3A" and "00" & opx = X"34" then
 					nextState <= BREAK;
 				elsif "00" & op = X"04" then
 					nextState <= I_OP;
@@ -138,6 +180,16 @@ begin
 					nextState <= LOAD1;
 				elsif "00" & op = X"15" then
 					nextState <= STORE;
+				elsif "00" & op = X"06" or "00" & op = X"0E" or "00" & op = X"16" or "00" & op = X"1E" or "00" & op = X"26" or "00" & op = X"2E" or "00" & op = X"36" then
+					nextState <= BRANCH;
+				elsif ("00" & op = X"00") then
+					nextState <= CALL;
+				elsif ("00" & op = X"3A" and "00" & opx = X"1D") then
+					nextState <= CALLR;
+				elsif "00" & op = X"3A" and ("00" & opx = X"05" or "00" & opx = X"0D") then
+					nextState <= JUMP;
+				elsif "00" & op = X"01" then 
+					nextState <= JUMPI;
 				end if;
 			when R_OP =>
 				nextState <= FETCH1;
@@ -151,6 +203,16 @@ begin
 				nextState <= FETCH1;
 			when I_OP =>
 				-- we take care of imm_signed
+				nextState <= FETCH1;
+			when BRANCH =>
+				nextState <= FETCH1;
+			when CALL =>
+				nextState <= FETCH1;
+			when JUMP =>
+				nextState <= FETCH1;
+			when CALLR =>
+				nextState <= FETCH1;
+			when JUMPI =>
 				nextState <= FETCH1;
 		end case;
 	end process compute_next_state;
