@@ -43,7 +43,7 @@ architecture synth of controller is
 	-- constant for alu op codes 
 	constant and_op             : std_logic_vector(5 downto 0) := "100001";
 	constant srl_op             : std_logic_vector(5 downto 0) := "110011";
-	constant add_op             : std_logic_vector(5 downto 0) := "000000";
+	constant addi_op             : std_logic_vector(5 downto 0) := "000000";
 	constant leqsi_op           : std_logic_vector(5 downto 0) := "011001";
 	constant bigsi_op           : std_logic_vector(5 downto 0) := "011010";
 	constant diff_op            : std_logic_vector(5 downto 0) := "011011";
@@ -156,7 +156,7 @@ begin
 		elsif "00" & op = X"36" then
 			op_alu <= bigu_op;
 		else
-			op_alu <= add_op;           -- default state 
+			op_alu <= addi_op;           -- default state 
 		end if;
 
 	end process compute_op_alu;
