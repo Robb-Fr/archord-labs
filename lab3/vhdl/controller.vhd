@@ -41,7 +41,49 @@ architecture synth of controller is
 	type state is (FETCH1, FETCH2, DECODE, R_OP, R_OP_IMM, STORE, BREAK, LOAD1, LOAD2, I_OP_S, I_OP_U, BRANCH, CALL, CALLR, JUMP, JUMPI);
 	signal currState, nextState : state;
 
+	constant alu_add  : std_logic_vector(5 downto 0) := "000000";
+	constant alu_sub  : std_logic_vector(5 downto 0) := "001000";
+	constant alu_leqs : std_logic_vector(5 downto 0) := "011001";
+	constant alu_mos  : std_logic_vector(5 downto 0) := "011010";
+	constant alu_diff : std_logic_vector(5 downto 0) := "011011";
+	constant alu_eq   : std_logic_vector(5 downto 0) := "011100";
+	constant alu_lequ : std_logic_vector(5 downto 0) := "011101";
+	constant alu_mou  : std_logic_vector(5 downto 0) := "011110";
+	constant alu_nor  : std_logic_vector(5 downto 0) := "100000";
+	constant alu_and  : std_logic_vector(5 downto 0) := "100001";
+	constant alu_or   : std_logic_vector(5 downto 0) := "100010";
+	constant alu_xnor : std_logic_vector(5 downto 0) := "100011";
+	constant alu_rol  : std_logic_vector(5 downto 0) := "110000";
+	constant alu_ror  : std_logic_vector(5 downto 0) := "110001";
+	constant alu_sll  : std_logic_vector(5 downto 0) := "110010";
+	constant alu_srl  : std_logic_vector(5 downto 0) := "110011";
+	constant alu_sra  : std_logic_vector(5 downto 0) := "110111";
+
+	signal bit8op  : std_logic_vector(7 downto 0);
+	signal bit8opx : std_logic_vector(7 downto 0);
 begin
+
+	bit8op  <= "00" & op;
+	bit8opx <= "00" & opx;
+
+	op_alu <= alu_add when bit8op = X"04" or bit8op = X"17" or bit8op = X"15" or bit8opx = X"31"
+	          else alu_sub when bit8opx = X"39"
+	          else alu_leqs when bit8op = X"08" or bit8op = X"0E" or bit8opx = X"08"
+	          else alu_mos when bit8op = X"10" or bit8op = X"16" or bit8opx = X"10"
+	          else alu_diff when bit8op = X"18" or bit8op = X"1E" or bit8opx = "18"
+	          else alu_eq when bit8op = X"20" or bit8op = X"06" or bit8op = X"26" or bit8opx = X"20"
+	          else alu_lequ when bit8op = X"28" or bit8op = X"2E" or bit8opx = X"28"
+	          else alu_mou when bit8op = X"30" or bit8op = X"36" or bit8opx = X"30"
+	          else alu_nor when bit8opx = X"06"
+	          else alu_and when bit8op = X"0C" or bit8opx = X"0E"
+	          else alu_or when bit8op = X"14" or bit8opx = X"16"
+	          else alu_xnor when bit8op = X"1C" or bit8opx = X"1E"
+	          else alu_rol when bit8opx = X"02" or bit8opx = X"03"
+	          else alu_ror when bit8opx = X"0B"
+	          else alu_sll when bit8opx = X"12" or bit8opx = X"13"
+	          else alu_srl when bit8opx = X"1A" or bit8opx = X"1B"
+	          else alu_sra when bit8opx = X"3A" or bit8opx = X"3B"
+	          else alu_add;
 
 	-- process that outputs the correct control signals depending on the state
 	compute_control_signals : process(currState) is
@@ -75,7 +117,7 @@ begin
 				sel_rC  <= '1';
 				rf_wren <= '1';
 			when R_OP_IMM =>
-				sel_rC <= '1';
+				sel_rC  <= '1';
 				rf_wren <= '1';
 			when STORE =>
 				write      <= '1';
@@ -121,22 +163,8 @@ begin
 
 	end process compute_control_signals;
 
-	state_DFF : process(clk, reset_n) is
-	begin
-		if reset_n = '0' then
-			currState <= FETCH1;
-		elsif rising_edge(clk) then
-			currState <= nextState;
-		end if;
-	end process state_DFF;
-
-	compute_op_alu : process(op, opx) is
-	begin
-	
-	end process compute_op_alu;
-
 	-- computes the next state and decodes the op and opx for adequate choice
-	compute_next_state : process(currState, op, opx) is
+	compute_next_state : process(currState, bit8op, bit8opx) is
 	begin
 		case currState is
 			when FETCH1 =>
@@ -144,34 +172,29 @@ begin
 			when FETCH2 =>
 				nextState <= DECODE;
 			when DECODE =>
-				if "00" & op = X"3A" and ("00" & opx = X"31" or "00" & opx = X"39" or "00" & opx = X"08" or "00" & opx = X"10" 
-					or "00" & opx = X"06" or "00" & opx = X"0E"
-					 or "00" & opx = X"16" or "00" & opx = X"1E" or "00" & opx = X"13" 
-					or "00" & opx = X"1B" or "00" & opx = X"3B" or "00" & opx = X"18" or "00" & opx = X"20" 
-					or "00" & opx = X"28" or "00" & opx = X"30" or "00" & opx = X"03" or "00" & opx = X"0B"
-				) then
+				if bit8op = X"3A" and (bit8opx = X"31" or bit8opx = X"39" or bit8opx = X"08" or bit8opx = X"10" or bit8opx = X"06" or bit8opx = X"0E" or bit8opx = X"16" or bit8opx = X"1E" or bit8opx = X"13" or bit8opx = X"1B" or bit8opx = X"3B" or bit8opx = X"18" or bit8opx = X"20" or bit8opx = X"28" or bit8opx = X"30" or bit8opx = X"03" or bit8opx = X"0B") then
 					nextState <= R_OP;
-				elsif op = X"3A" and ("00" & opx = X"12" or "00" & opx = X"1A" or "00" & opx = X"3A" or "00" & opx = X"02" ) then 
+				elsif bit8op = X"3A" and (bit8opx = X"12" or bit8opx = X"1A" or bit8opx = X"3A" or bit8opx = X"02") then
 					nextState <= R_OP_IMM;
-				elsif "00" & op = X"3A" and "00" & opx = X"34" then
+				elsif bit8op = X"3A" and bit8opx = X"34" then
 					nextState <= BREAK;
-				elsif "00" & op = X"04" or "00" & op = X"08" or "00" & op = X"10" or "00" & op = X"18" or "00" & op = X"20" then	
+				elsif bit8op = X"04" or bit8op = X"08" or bit8op = X"10" or bit8op = X"18" or bit8op = X"20" then
 					nextState <= I_OP_S;
-				elsif  "00" & op = X"0C" or "00" & op = X"14" or "00" & op = X"1C" or "00" & op = X"28" or "00" & op = X"30" then 
+				elsif bit8op = X"0C" or bit8op = X"14" or bit8op = X"1C" or bit8op = X"28" or bit8op = X"30" then
 					nextState <= I_OP_U;
-				elsif "00" & op = X"17" then
+				elsif bit8op = X"17" then
 					nextState <= LOAD1;
-				elsif "00" & op = X"15" then
+				elsif bit8op = X"15" then
 					nextState <= STORE;
-				elsif "00" & op = X"06" or "00" & op = X"0E" or "00" & op = X"16" or "00" & op = X"1E" or "00" & op = X"26" or "00" & op = X"2E" or "00" & op = X"36" then
+				elsif bit8op = X"06" or bit8op = X"0E" or bit8op = X"16" or bit8op = X"1E" or bit8op = X"26" or bit8op = X"2E" or bit8op = X"36" then
 					nextState <= BRANCH;
-				elsif ("00" & op = X"00") then
+				elsif (bit8op = X"00") then
 					nextState <= CALL;
-				elsif ("00" & op = X"3A" and "00" & opx = X"1D") then
+				elsif (bit8op = X"3A" and bit8opx = X"1D") then
 					nextState <= CALLR;
-				elsif "00" & op = X"3A" and ("00" & opx = X"05" or "00" & opx = X"0D") then
+				elsif bit8op = X"3A" and (bit8opx = X"05" or bit8opx = X"0D") then
 					nextState <= JUMP;
-				elsif "00" & op = X"01" then
+				elsif bit8op = X"01" then
 					nextState <= JUMPI;
 				end if;
 			when R_OP =>
@@ -202,5 +225,14 @@ begin
 				nextState <= FETCH1;
 		end case;
 	end process compute_next_state;
+
+	state_DFF : process(clk, reset_n) is
+	begin
+		if reset_n = '0' then
+			currState <= FETCH1;
+		elsif rising_edge(clk) then
+			currState <= nextState;
+		end if;
+	end process state_DFF;
 
 end synth;
