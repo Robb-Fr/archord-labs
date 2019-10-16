@@ -16,17 +16,17 @@ entity controller is
 		ir_en      : out std_logic;
 		-- PC control signals
 		pc_add_imm : out std_logic;
-		pc_en      : out std_logic;     --n
-		pc_sel_a   : out std_logic;     --n
-		pc_sel_imm : out std_logic;     --n
+		pc_en      : out std_logic;
+		pc_sel_a   : out std_logic;
+		pc_sel_imm : out std_logic;
 		-- register file enable
 		rf_wren    : out std_logic;
 		-- multiplexers selections
 		sel_addr   : out std_logic;
 		sel_b      : out std_logic;
 		sel_mem    : out std_logic;
-		sel_pc     : out std_logic;     --n
-		sel_ra     : out std_logic;     --n
+		sel_pc     : out std_logic;
+		sel_ra     : out std_logic;
 		sel_rC     : out std_logic;
 		-- write memory output
 		read       : out std_logic;
@@ -38,14 +38,14 @@ end controller;
 
 architecture synth of controller is
 	-- state of the controller fsm
-	type state is (FETCH1, FETCH2, DECODE, R_OP, STORE, BREAK, LOAD1, LOAD2, I_OP, BRANCH, CALL, CALLR, JUMP, JUMPI);
+	type state is (FETCH1, FETCH2, DECODE, R_OP, STORE, BREAK, LOAD1, LOAD2, I_OP_S, I_OP_U, BRANCH, CALL, CALLR, JUMP, JUMPI);
 	signal currState, nextState : state;
 	-- constant for alu op codes 
 	constant and_op             : std_logic_vector(5 downto 0) := "100001";
 	constant srl_op             : std_logic_vector(5 downto 0) := "110011";
-	constant addi_op             : std_logic_vector(5 downto 0) := "000000";
-	constant leqsi_op           : std_logic_vector(5 downto 0) := "011001";
-	constant bigsi_op           : std_logic_vector(5 downto 0) := "011010";
+	constant addi_op            : std_logic_vector(5 downto 0) := "000000";
+	constant leqs_op            : std_logic_vector(5 downto 0) := "011001";
+	constant bigs_op            : std_logic_vector(5 downto 0) := "011010";
 	constant diff_op            : std_logic_vector(5 downto 0) := "011011";
 	constant eq_op              : std_logic_vector(5 downto 0) := "011100";
 	constant lequ_op            : std_logic_vector(5 downto 0) := "011101";
@@ -97,9 +97,11 @@ begin
 			when LOAD2 =>
 				sel_mem <= '1';
 				rf_wren <= '1';
-			when I_OP =>
-				imm_signed <= '1';      -- currently there's ony I_OP operation and it is signed
+			when I_OP_S =>
+				imm_signed <= '1';
 				rf_wren    <= '1';
+			when I_OP_U =>
+				rf_wren <= '1';
 			when BRANCH =>
 				branch_op  <= '1';
 				pc_add_imm <= '1';
@@ -137,26 +139,26 @@ begin
 
 	compute_op_alu : process(op, opx) is
 	begin
-		if "00" & op = X"3A" and "00" & opx = X"0E" then
+		if "00" & op = X"3A" and "00" & opx = X"0E" then -- and rC, rA, rB
 			op_alu <= and_op;
-		elsif "00" & op = X"3A" and "00" & opx = X"1B" then
+		elsif "00" & op = X"3A" and "00" & opx = X"1B" then -- srl rC, rA, rB
 			op_alu <= srl_op;
-		elsif "00" & op = X"06" then
-		-- must do unconditional branch
-		elsif "00" & op = X"0E" then
-			op_alu <= leqsi_op;
-		elsif "00" & op = X"016" then
-			op_alu <= bigsi_op;
-		elsif "00" & op = X"1E" then
-			op_alu <= diff_op;
-		elsif "00" & op = X"26" then
+		elsif "00" & op = X"06" then    -- br label
 			op_alu <= eq_op;
-		elsif "00" & op = X"2E" then
+		elsif "00" & op = X"0E" then    -- ble rA, rB, label
+			op_alu <= leqs_op;
+		elsif "00" & op = X"016" then   -- bgt rA, rB, label
+			op_alu <= bigs_op;
+		elsif "00" & op = X"1E" then    -- bne rA, rB, label
+			op_alu <= diff_op;
+		elsif "00" & op = X"26" then    -- beq rA, rB, label
+			op_alu <= eq_op;
+		elsif "00" & op = X"2E" then    -- bleu rA, rB, label
 			op_alu <= lequ_op;
-		elsif "00" & op = X"36" then
+		elsif "00" & op = X"36" then    -- bgtu rA, rB, label
 			op_alu <= bigu_op;
-		else
-			op_alu <= addi_op;           -- default state 
+		else                            -- addi rB, rA, imm
+			op_alu <= addi_op;          -- default state 
 		end if;
 
 	end process compute_op_alu;
@@ -174,7 +176,7 @@ begin
 					nextState <= R_OP;
 				elsif "00" & op = X"3A" and "00" & opx = X"34" then
 					nextState <= BREAK;
-				elsif "00" & op = X"04" then
+				elsif "00" & op = X"04" then -- Detect I_OP better way
 					nextState <= I_OP;
 				elsif "00" & op = X"17" then
 					nextState <= LOAD1;
@@ -188,7 +190,7 @@ begin
 					nextState <= CALLR;
 				elsif "00" & op = X"3A" and ("00" & opx = X"05" or "00" & opx = X"0D") then
 					nextState <= JUMP;
-				elsif "00" & op = X"01" then 
+				elsif "00" & op = X"01" then
 					nextState <= JUMPI;
 				end if;
 			when R_OP =>
@@ -201,8 +203,9 @@ begin
 				nextState <= LOAD2;
 			when LOAD2 =>
 				nextState <= FETCH1;
-			when I_OP =>
-				-- we take care of imm_signed
+			when I_OP_S =>
+				nextState <= FETCH1;
+			when I_OP_U =>
 				nextState <= FETCH1;
 			when BRANCH =>
 				nextState <= FETCH1;
