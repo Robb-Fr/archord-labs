@@ -38,18 +38,8 @@ end controller;
 
 architecture synth of controller is
 	-- state of the controller fsm
-	type state is (FETCH1, FETCH2, DECODE, R_OP, STORE, BREAK, LOAD1, LOAD2, I_OP_S, I_OP_U, BRANCH, CALL, CALLR, JUMP, JUMPI);
+	type state is (FETCH1, FETCH2, DECODE, R_OP, R_OP_IMM, STORE, BREAK, LOAD1, LOAD2, I_OP_S, I_OP_U, BRANCH, CALL, CALLR, JUMP, JUMPI);
 	signal currState, nextState : state;
-	-- constant for alu op codes 
-	constant and_op             : std_logic_vector(5 downto 0) := "100001";
-	constant srl_op             : std_logic_vector(5 downto 0) := "110011";
-	constant addi_op            : std_logic_vector(5 downto 0) := "000000";
-	constant leqs_op            : std_logic_vector(5 downto 0) := "011001";
-	constant bigs_op            : std_logic_vector(5 downto 0) := "011010";
-	constant diff_op            : std_logic_vector(5 downto 0) := "011011";
-	constant eq_op              : std_logic_vector(5 downto 0) := "011100";
-	constant lequ_op            : std_logic_vector(5 downto 0) := "011101";
-	constant bigu_op            : std_logic_vector(5 downto 0) := "011110";
 
 begin
 
@@ -83,6 +73,9 @@ begin
 			when R_OP =>
 				sel_b   <= '1';
 				sel_rC  <= '1';
+				rf_wren <= '1';
+			when R_OP_IMM =>
+				sel_rC <= '1';
 				rf_wren <= '1';
 			when STORE =>
 				write      <= '1';
@@ -139,28 +132,7 @@ begin
 
 	compute_op_alu : process(op, opx) is
 	begin
-		if "00" & op = X"3A" and "00" & opx = X"0E" then -- and rC, rA, rB
-			op_alu <= and_op;
-		elsif "00" & op = X"3A" and "00" & opx = X"1B" then -- srl rC, rA, rB
-			op_alu <= srl_op;
-		elsif "00" & op = X"06" then    -- br label
-			op_alu <= eq_op;
-		elsif "00" & op = X"0E" then    -- ble rA, rB, label
-			op_alu <= leqs_op;
-		elsif "00" & op = X"016" then   -- bgt rA, rB, label
-			op_alu <= bigs_op;
-		elsif "00" & op = X"1E" then    -- bne rA, rB, label
-			op_alu <= diff_op;
-		elsif "00" & op = X"26" then    -- beq rA, rB, label
-			op_alu <= eq_op;
-		elsif "00" & op = X"2E" then    -- bleu rA, rB, label
-			op_alu <= lequ_op;
-		elsif "00" & op = X"36" then    -- bgtu rA, rB, label
-			op_alu <= bigu_op;
-		else                            -- addi rB, rA, imm
-			op_alu <= addi_op;          -- default state 
-		end if;
-
+	
 	end process compute_op_alu;
 
 	-- computes the next state and decodes the op and opx for adequate choice
@@ -174,10 +146,14 @@ begin
 			when DECODE =>
 				if "00" & op = X"3A" and ("00" & opx = X"0E" or "00" & opx = X"1B") then
 					nextState <= R_OP;
+				elsif op = "000000" then -- put the cases
+					nextState <= R_OP_IMM;
 				elsif "00" & op = X"3A" and "00" & opx = X"34" then
 					nextState <= BREAK;
-				elsif "00" & op = X"04" then -- Detect I_OP better way
-					nextState <= I_OP;
+				elsif "00" & op = X"04" or "00" & op = X"08" or "00" & op = X"10" or "00" & op = X"18" or "00" & op = X"20" then -- Detect I_OP better way	
+					nextState <= I_OP_S;
+				elsif  "00" & op = X"0C" or "00" & op = X"14" or "00" & op = X"1C" or "00" & op = X"28" or "00" & op = X"30" then 
+					nextState <= I_OP_U;
 				elsif "00" & op = X"17" then
 					nextState <= LOAD1;
 				elsif "00" & op = X"15" then
@@ -216,6 +192,8 @@ begin
 			when CALLR =>
 				nextState <= FETCH1;
 			when JUMPI =>
+				nextState <= FETCH1;
+			when R_OP_IMM =>
 				nextState <= FETCH1;
 		end case;
 	end process compute_next_state;
