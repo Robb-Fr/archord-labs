@@ -144,13 +144,18 @@ begin
 			when FETCH2 =>
 				nextState <= DECODE;
 			when DECODE =>
-				if "00" & op = X"3A" and ("00" & opx = X"0E" or "00" & opx = X"1B") then
+				if "00" & op = X"3A" and ("00" & opx = X"31" or "00" & opx = X"39" or "00" & opx = X"08" or "00" & opx = X"10" 
+					or "00" & opx = X"06" or "00" & opx = X"0E"
+					 or "00" & opx = X"16" or "00" & opx = X"1E" or "00" & opx = X"13" 
+					or "00" & opx = X"1B" or "00" & opx = X"3B" or "00" & opx = X"18" or "00" & opx = X"20" 
+					or "00" & opx = X"28" or "00" & opx = X"30" or "00" & opx = X"03" or "00" & opx = X"0B"
+				) then
 					nextState <= R_OP;
-				elsif op = "000000" then -- put the cases
+				elsif op = X"3A" and ("00" & opx = X"12" or "00" & opx = X"1A" or "00" & opx = X"3A" or "00" & opx = X"02" ) then 
 					nextState <= R_OP_IMM;
 				elsif "00" & op = X"3A" and "00" & opx = X"34" then
 					nextState <= BREAK;
-				elsif "00" & op = X"04" or "00" & op = X"08" or "00" & op = X"10" or "00" & op = X"18" or "00" & op = X"20" then -- Detect I_OP better way	
+				elsif "00" & op = X"04" or "00" & op = X"08" or "00" & op = X"10" or "00" & op = X"18" or "00" & op = X"20" then	
 					nextState <= I_OP_S;
 				elsif  "00" & op = X"0C" or "00" & op = X"14" or "00" & op = X"1C" or "00" & op = X"28" or "00" & op = X"30" then 
 					nextState <= I_OP_U;
