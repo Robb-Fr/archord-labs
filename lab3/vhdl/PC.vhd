@@ -32,14 +32,14 @@ begin
 		end if;
 	end process;
 
-	next_state : process(cur, a(13 downto 0), add_imm, imm, imm(13 downto 0), sel_a, sel_imm) is
+	next_state : process(cur, a, add_imm, imm, sel_a, sel_imm) is
 	begin
 		if add_imm = '1' then
 			nxt <= std_logic_vector((signed(cur) + signed(imm)));
 		elsif sel_imm = '1' then
-			nxt <= std_logic_vector(X"0000" & (imm(13 downto 0) & "00"));
+			nxt <= std_logic_vector(X"000" & "00" & (imm(15 downto 0) & "00"));
 		elsif sel_a = '1' then
-			nxt <= std_logic_vector(X"0000" & (a(13 downto 0) & "00"));
+			nxt <= std_logic_vector(X"000" & "00" & (a(15 downto 0) & "00"));
 		else
 			nxt <= std_logic_vector((unsigned(cur) + 4));
 		end if;
