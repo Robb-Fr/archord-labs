@@ -34,11 +34,11 @@ begin
 
 	next_state : process(cur, a, add_imm, imm, sel_a, sel_imm) is
 	begin
-		if add_imm = '1' then
+		if add_imm = '1' and sel_a = '0' and sel_imm = '0' then
 			nxt <= std_logic_vector((signed(cur) + signed(imm)));
-		elsif sel_imm = '1' then
+		elsif add_imm = '0' and sel_a = '0' and sel_imm = '1' then
 			nxt <= std_logic_vector(X"000" & "00" & (imm(15 downto 0) & "00"));
-		elsif sel_a = '1' then
+		elsif add_imm = '0' and sel_a = '1' and sel_imm = '0' then
 			nxt <= std_logic_vector(X"000" & "00" & (a(15 downto 0) & "00"));
 		else
 			nxt <= std_logic_vector((unsigned(cur) + 4));
