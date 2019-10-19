@@ -70,7 +70,7 @@ begin
 	          else alu_sub when bit8opx = X"39"
 	          else alu_leqs when bit8op = X"08" or bit8op = X"0E" or bit8opx = X"08"
 	          else alu_mos when bit8op = X"10" or bit8op = X"16" or bit8opx = X"10"
-	          else alu_diff when bit8op = X"18" or bit8op = X"1E" or bit8opx = "18"
+	          else alu_diff when bit8op = X"18" or bit8op = X"1E" or bit8opx = X"18"
 	          else alu_eq when bit8op = X"20" or bit8op = X"06" or bit8op = X"26" or bit8opx = X"20"
 	          else alu_lequ when bit8op = X"28" or bit8op = X"2E" or bit8opx = X"28"
 	          else alu_mou when bit8op = X"30" or bit8op = X"36" or bit8opx = X"30"
