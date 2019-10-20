@@ -42,7 +42,7 @@ begin
 
 	mem_block : ROM_Block
 		port map(
-			address => address_FF,
+			address => address, --Warning : it was address_FF
 			clock   => clk,
 			q       => rd_selected
 		);
