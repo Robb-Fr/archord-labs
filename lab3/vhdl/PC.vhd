@@ -19,7 +19,7 @@ end PC;
 architecture synth of PC is
 	signal cur, nxt : std_logic_vector(31 downto 0);
 begin
-	addr <= cur(31 downto 2) & "00";
+	addr <= X"0000" & cur(15 downto 2) & "00";
 
 	dff : process(clk, reset_n) is
 	begin
