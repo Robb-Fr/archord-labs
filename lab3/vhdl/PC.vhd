@@ -37,9 +37,9 @@ begin
 		if add_imm = '1' and sel_a = '0' and sel_imm = '0' then
 			nxt <= std_logic_vector((signed(cur) + signed(imm)));
 		elsif add_imm = '0' and sel_a = '0' and sel_imm = '1' then
-			nxt <= std_logic_vector(cur(31 downto 18) & (imm(15 downto 0) & "00"));
+			nxt <= std_logic_vector(X"000" & "00" & (imm(15 downto 0) & "00"));
 		elsif add_imm = '0' and sel_a = '1' and sel_imm = '0' then
-			nxt <= std_logic_vector(cur(31 downto 16) & (a(15 downto 0)));
+			nxt <= std_logic_vector(X"0000" & (a(15 downto 0)));
 		else
 			nxt <= std_logic_vector((unsigned(cur) + 4));
 		end if;
