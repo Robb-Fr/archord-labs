@@ -15,24 +15,26 @@ draw_gsa:
 		ldw s0, LEDS(t0)	#prepare the word to store
 
 		WORD_loop:
-			slli t4, t0, 5	#GSA address = 32*LED_loop counter
-			add t4, t4, t1	#GSA_address = GSA_address + WORD_loop counter
-			slli t4, t4, 2	#Get valid address
+			slli t4, t0, 5			#GSA address = 32*LED_loop counter
+			add t4, t4, t1			#GSA_address = GSA_address + WORD_loop counter
+			slli t4, t4, 2			#Get valid address
 
-			ldw t5, GSA(t4)	#current GSA word load
+			ldw t5, GSA(t4)			#current GSA word load
 
-			cmpgei t5, t5, 1	# t5 == (falling||placed) ? 1 : 0
-			sll t6, t5, t1	#setting the mask
+			cmpgei t5, t5, 1		# t5 == (falling||placed) ? 1 : 0
+			sll t6, t5, t1			#setting the mask
 			
-			or s0, s0, t6
+			or s0, s0, t6			#apply mask
 			
-			addi t1, t1, 1
-			bne t1,t3, WORD_loop
-			add t1, zero, zero
-			stw s0, LEDS(t0)
-			addi t0, t0, 1
+			addi t1, t1, 1			#update counter
+			bne t1,t3, WORD_loop	#loop if counter ≠ max value
+
+			stw s0, LEDS(t0)		#store the word
+			add t1, zero, zero		#reinitialize counter
+			addi t0, t0, 1			#update counter
 		
-		bne t0, t2, LED_loop
+		bne t0, t2, LED_loop	#loop if counter ≠ max value
+
 	return:
 	ret
 ; END:draw_gsa
