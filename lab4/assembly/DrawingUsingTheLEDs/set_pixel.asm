@@ -4,7 +4,7 @@
 set_pixel:
 addi t0, zero, 15  #creating the mask
 slli t0,t0,2
-and  t1,a0, t0     #forcing last two bits of arguments at zero to get (0 or 4 or 8)
+and  t1,a0, t0     #forcing last two bits of arguments at zero to get a multiple of 4(0 or 4 or 8)
 ldw t2, LEDS(t1)   # loading correct word (t1 = 0,4,8)
 
 addi t0,zero, 15   # creating another mask
