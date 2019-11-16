@@ -67,7 +67,7 @@
   ;; TODO Insert your code here
 
 main:
-	addi sp, zero, 0x202C
+	addi sp, zero, 0x1FFC   
 	call generate_tetromino
 	
 	addi a0, zero, FALLING
@@ -206,11 +206,12 @@ draw_gsa:
 
 ; BEGIN:draw_tetromino
 draw_tetromino:
-	addi sp,sp,-16      #pushing return adress and saved registers on the stack
+	addi sp,sp,-20      #pushing return adress and saved registers on the stack
 	stw ra, 0(sp)            
-	stw s0, 4(sp)
+	stw s3, 4(sp)
 	stw s1, 8(sp)       # stack = top -> ra/s0/s1/s2
 	stw s2, 12(sp)
+    stw s4, 16(sp)
 
 	ldw s1, T_X(zero)  #s1 = x position of the anchor point
 	ldw s2, T_Y(zero)  #s2 = y position of the anchor point
@@ -224,26 +225,31 @@ draw_tetromino:
 	ldw t1, T_orientation(zero)
 	slli t0,t0,2
 	add t0,t0,t1     
-	slli s0,t0,2         # s0 = (T_type*4 + T_orientation) << 2
-	addi t3,s0,12 # loop limit
+	slli t0,t0,2         # s0 = (T_type*4 + T_orientation) << 2
+    ldw s3, DRAW_Ax(t0)  # s3 stores the pointer to the offset array x
+    ldw s4, DRAW_Ay(t0)  # s4 stores the pointer to the offset array y
+	addi t3,s3,12 # loop limit
 
 	mini_loop:                               # this loop sets the gsa for the surrouding point around the anchor point
-		beq s0,t3, return_time
-		ldw t1, DRAW_Ax(s0)  # offset in array for x axis
-		ldw t2, DRAW_Ay(s0)  # offset in array for y axis
+		beq s3,t3, return_time
+		ldw t1, 0(s3) # offset in array for x axis
+		ldw t2, 0(s4) # offset in array for y axis
+        
 		add a0, s1, t1        # ao = x + offset
 		add a1, s2,t2         # a1 = y + offset
 		call set_gsa          # set the surrounding gsas around the anchor gsa
-		addi s0,s0,4
+		addi s3,s3,4
+        addi s4,s4,4
 		br mini_loop
 
 
 	return_time:
+        ldw s4,16(sp)
 		ldw s2,12(sp)
 		ldw s1, 8(sp)
-		ldw s0, 4(sp)
+		ldw s3, 4(sp)
 		ldw ra, 0(sp)
-		addi sp,sp,16
+		addi sp,sp,20
 	ret
 ; END:draw_tetromino
 
