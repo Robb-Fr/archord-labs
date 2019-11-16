@@ -10,9 +10,9 @@ draw_gsa:
 	#t4 stores current GSA address
 	#t5 stores current GSA word
 	#t6 stores the mask for LED word
-	#s0 stores the current LED word
+	#t7 stores the current LED word
 	LED_loop:
-		ldw s0, LEDS(t0)	#prepare the word to store
+		ldw t7, LEDS(t0)	#prepare the word to store
 
 		WORD_loop:
 			slli t4, t0, 5			#GSA address = 32*LED_loop counter
@@ -24,12 +24,12 @@ draw_gsa:
 			cmpgei t5, t5, 1		# t5 == (falling||placed) ? 1 : 0
 			sll t6, t5, t1			#setting the mask
 			
-			or s0, s0, t6			#apply mask
+			or t7, t7, t6			#apply mask
 			
 			addi t1, t1, 1			#update counter
 			bne t1,t3, WORD_loop	#loop if counter ≠ max value
 
-			stw s0, LEDS(t0)		#store the word
+			stw t7, LEDS(t0)		#store the word
 			add t1, zero, zero		#reinitialize counter
 			addi t0, t0, 1			#update counter
 		
