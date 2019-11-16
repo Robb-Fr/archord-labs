@@ -194,6 +194,69 @@ draw_gsa:
 		ret
 ; END:draw_gsa
 
+; BEGIN:draw_tetromino
+draw_tetromino:
+ addi sp,sp,-16      #pushing return adress and saved registers on the stack
+ stw ra, 0(sp)            
+ stw s0, 4(sp)
+ stw s1, 8(sp)       # stack = top -> ra/s0/s1/s2
+ stw s2, 12(sp)
+
+
+ ldw s1, T_X(zero)  #s1 = x position of the anchor point
+ ldw s2, T_Y(zero)  #s2 = y position of the anchor point
+ add a2,a0,zero     # a2 stores the p value of the GSA
+ add a0, s1, zero   # setting the arguments for set_gsa
+ add a1, s2, zero
+
+ call set_gsa       # setting the anchor point in the gsa
+
+ ldw t0, T_type(zero)
+ ldw t1, T_orientation(zero)
+ slli t0,t0,2
+ add t0,t0,t1     
+ slli s0,t0,2         # s0 = (T_type*4 + T_orientation) << 2
+ addi t3,s0,12 # loop limit
+
+ mini_loop:                               # this loop sets the gsa for the surrouding point around the anchor point
+  beq s0,t3, return_time
+   ldw t1, DRAW_Ax(s0)  # offset in array for x axis
+   ldw t2, DRAW_Ay(s0)  # offset in array for y axis
+   add a0, s1, t1        # ao = x + offset
+   add a1, s2,t2         # a1 = y + offset
+   call set_gsa          # set the surrounding gsas around the anchor gsa
+   addi s0,s0,4
+ br mini_loop
+
+
+return_time:
+
+ldw s2,12(sp)
+ldw s1, 8(sp)
+ldw s0, 4(sp)
+ldw ra, 0(sp)
+addi sp,sp,16
+ret
+; END:draw_tetromino
+
+; BEGIN:generate_tetromino
+generate_tetromino:
+    loop:
+    ldw t0, RANDOM_NUM(zero)
+    andi t0,t0,0x7
+    cmpgei t1, t0, 5
+    bne t1,zero, loop
+
+    stw t0,T_type(zero) # random tetromino shape
+    addi t0,zero,6
+    addi t1,zero,1
+    addi t2, zero, N
+    stw t0, T_X(zero) # x = 6
+    stw t1, T_Y(zero) # y = 1
+    stw t2, T_orientation(zero) # orientation = North
+    
+; END:generate_tetromino
+
 font_data:
     .word 0xFC  ; 0
     .word 0x60  ; 1
