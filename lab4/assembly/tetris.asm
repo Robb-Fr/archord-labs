@@ -65,6 +65,135 @@
 
 
   ;; TODO Insert your code here
+
+; BEGIN:clear_leds
+clear_leds:
+	stw zero, LEDS(zero)
+	stw zero, LEDS+4(zero)
+	stw zero, LEDS+8(zero)
+	ret
+; END:clear_leds
+
+; BEGIN:set_pixel
+set_pixel:
+	srli t0, a0, 2
+	slli t0, t0, 2		#t0 = (x/4)*4
+	ldw t1, LEDS(t0)	#loading correct word (t1 = 0,4,8)
+
+	slli t2, a0, 3
+	add t2, t2, a1
+	andi t2, t2, 0x3F	#t2 = (8*x+y)%32
+
+	addi t3, zero, 1
+	sll t3, t3, t2		#t3 = 1 << (8*x+y)%32
+
+	or t1, t1, t3
+	
+	stw t1, LEDS(t0)
+
+	ret
+; END:set_pixel
+
+; BEGIN:wait
+wait:
+	addi a0, zero, 0x1
+	slli a0, a0, 5				#sets the 20th bit to 1 in order to have 2^20
+
+	count_down:
+		addi a0, a0, -1 		#decrement argument by 1
+		bne a0, zero, count_down	#compare a0 to 0 and restart if not equal
+
+	ret
+; END:wait
+
+; BEGIN:get_gsa
+get_gsa:
+	slli t1, a0, 3     #t1 stores the value from 0 to 95, here i do t1 = x*8
+	add t1, t1, a1     # here i get t1 = x*8 + y
+	slli t1, t1, 2     # t1 is shifted by 2 to get a mutliple of 4
+	ldw v0, GSA(t1)  # loading the correct GSA square in v0
+	ret
+; END:get_gsa
+
+; BEGIN:in_gsa
+in_gsa:
+	addi t0, zero, 12			#x must not get to this value
+	addi t1, zero, 8			#y must not get to this value	
+
+	blt a0, zero, flag_outside	#if x < 0
+	bge a0, t0, flag_outside	#if x ≥ 12
+	blt a1, zero, flag_outside	#if y < 0
+	bge a1, t1, flag_outside	#if y ≥ 8
+
+	br is_ok					#all tests passed
+
+	flag_outside:
+		addi v0, zero, 1		#set flag on
+		br return
+	is_ok:
+		add v0, zero, zero		#set no flag
+		br return
+
+	return:
+	ret
+; END:in_gsa
+
+; BEGIN:set_gsa
+set_gsa:
+	slli t1, a0, 3     # t1 stores the value between 0 and 95, here i do t1 = x*8
+	add t1, t1, a1     # i do t1 = x*8 + y
+	slli t1, t1, 2      # shifting t1 by 2 to get a multiple of 4
+
+	stw a2, GSA(t1)   # storing p taking value in (NOTHING,PLACED,FALLING) in the correct GSA square
+	
+	ret
+; END:set_gsa
+
+; BEGIN:draw_gsa
+draw_gsa:
+	addi sp, sp, -20
+	stw ra, 0(sp)
+	stw s0, 4(sp)
+	stw s1, 8(sp)
+	stw s2, 12(sp)
+	stw s3, 16(sp)
+
+	add s0, zero, zero	#x
+	add s1, zero, zero	#y
+	addi s2, zero, 11	#x max
+	addi s3, zero, 7	#y max
+
+	call clear_leds
+	
+	loop_draw:
+		add a0, zero, s0
+		add a1, zero, s1
+		call get_gsa
+		
+		beq v0, zero, next_draw
+		call set_pixel
+		
+		next_draw:
+			beq s1, s3, next_j_draw	#if (y == y max) increment x
+			addi s1, s1, 1			#else increment y
+			br loop_draw
+			next_j_draw:
+				beq s0, s2, end_draw	#if (x == x max) end loop
+				add s1, zero, zero		#restart y
+				addi s0, s0, 1			#else increment x
+				br loop_draw
+
+	end_draw:
+		ldw ra, 0(sp)
+		ldw s0, 4(sp)
+		ldw s1, 8(sp)
+		ldw s2, 12(sp)
+		ldw s3, 16(sp)
+		addi sp, sp, 20
+			
+		ret
+; END:draw_gsa
+
 font_data:
     .word 0xFC  ; 0
     .word 0x60  ; 1
@@ -321,123 +450,3 @@ DRAW_Ay:                        ; address of shape arrays, y_axis
     .word L_So_Y
     .word L_W_Y
 
-; BEGIN:clear_leds
-clear_leds:
-	stw zero, LEDS(zero)
-	stw zero, LEDS+4(zero)
-	stw zero, LEDS+8(zero)
-	ret
-; END:clear_leds
-
-; BEGIN:set_pixel
-set_pixel:
-	addi t0, zero, 15  #creating the mask
-	slli t0,t0,2
-	and  t1,a0, t0     #forcing last two bits of arguments at zero to get a multiple of 4(0 or 4 or 8)
-	ldw t2, LEDS(t1)   # loading correct word (t1 = 0,4,8)
-
-	addi t0,zero, 15   # creating another mask
-	srli t0,t0,2
-	and t3, a0, t0    # t3 is the offset 0,1,2,3 to be used to find the correct bit to set at postion (y + offset*8)
-
-	addi t4,zero,1    # t4 will be the mask for the correct bit
-	sll  t4,t4, a1    # t4 has now been shifted by y and will be then shifted by offset*8
-
-	slli t3,t3,3      # offset*8
-	sll t4,t4,t3      # shfiting t4 by offset*8         
-	or t2,t2,t4
-	stw t2,LEDS(t1)
-	ret
-; END:set_pixel
-
-; BEGIN:wait
-wait:
-	addi a0, zero, 0x1
-	slli a0, a0, 20				#sets the 20th bit to 1 in order to have 2^20
-
-	count_down:
-		addi a0, a0, -1 		#decrement argument by 1
-		bne a0, zero, count_down	#compare a0 to 0 and restart if not equal
-
-	ret
-; END:wait
-
-; BEGIN:get_gsa
-get_gsa:
-slli t1,a0,3     #t1 stores the value from 0 to 95, here i do t1 = x*8
-add t1,t1,a1     # here i get t1 = x*8 + y
-slli t1,t1,2     # t1 is shifted by 2 to get a mutliple of 4
-ldw v0, GSA(t1)  # loading the correct GSA square in v0
-ret
-; END:get_gsa
-
-; BEGIN:in_gsa
-in_gsa:
-	addi t0, zero, 12			#x must not get to this value
-	addi t1, zero, 8			#y must not get to this value	
-
-	blt a0, zero, flag_outside	#if x < 0
-	bge a0, t0, flag_outside	#if x ≥ 12
-	blt a1, zero, flag_outside	#if y < 0
-	bge a1, t1, flag_outside	#if y ≥ 8
-
-	br is_ok					#all tests passed
-
-	flag_outside:
-		addi v0, zero, 1		#set flag on
-		br return
-	is_ok:
-		add v0, zero, zero		#set no flag
-		br return
-
-	return:
-	ret
-; END:in_gsa
-
-; BEGIN:set_gsa
-set_gsa:
-slli t1,a0,3     # t1 stores the value between 0 and 95, here i do t1 = x*8
-add t1,t1,a1     # i do t1 = x*8 + y
-slli t1,t1,2      # shifting t1 by 2 to get a multiple of 4
-
-stw a2, GSA(t1)   # storing p taking value in (NOTHING,PLACED,FALLING) in the correct GSA square
-ret
-; END:set_gsa
-
-; BEGIN:draw_gsa
-draw_gsa:
-	add t0, zero, zero		#LED_loop counter (0->2)
-	add t1, zero, zero		#WORD_loop counter (0->31)
-	addi t2, zero, 3		#last value of LED_loop counter
-	addi t3, zero, 32		#last value of WORD_loop counter
-	#t4 stores current GSA address
-	#t5 stores current GSA word
-	#t6 stores the mask for LED word
-	#t7 stores the current LED word
-	LED_loop:
-		ldw t7, LEDS(t0)	#prepare the word to store
-
-		WORD_loop:
-			slli t4, t0, 5			#GSA address = 32*LED_loop counter
-			add t4, t4, t1			#GSA_address = GSA_address + WORD_loop counter
-			slli t4, t4, 2			#Get valid address
-
-			ldw t5, GSA(t4)			#current GSA word load
-
-			cmpgei t5, t5, 1		# t5 == (falling||placed) ? 1 : 0
-			sll t6, t5, t1			#setting the mask
-			
-			or t7, t7, t6			#apply mask
-			
-			addi t1, t1, 1			#update counter
-			bne t1,t3, WORD_loop	#loop if counter ≠ max value
-
-			stw t7, LEDS(t0)		#store the word
-			add t1, zero, zero		#reinitialize counter
-			addi t0, t0, 1			#update counter
-		
-		bne t0, t2, LED_loop	#loop if counter ≠ max value
-
-	return:
-	ret
-; END:draw_gsa
