@@ -449,6 +449,164 @@ detect_collision:
 
 
 ; END:detect_collision
+
+; BEGIN:rotate_tetromino
+rotate_tetromino:
+
+# the idea is to decrement if left rotation else increment the current orientation and then msking the last 2 bits
+
+	addi t4,zero, rotL
+	ldw t5, T_orientation(zero)
+	andi t5,t5,0x3
+	beq a0,t4,left
+	right:
+	addi t5,t5,1
+	br back
+	left:
+	addi t5,t5,-1
+	back:
+	andi t5,t5,0x3
+	stw t5, T_orientation(zero)
+	ret
+; END:rotate_tetromino
+
+; BEGIN:act
+act:
+	addi sp,sp,-16
+	stw ra, 0(sp)
+	stw s0, 4(sp)
+	stw s1, 8(sp)
+	stw s2, 12(sp)  #stack looks like : top -> ra/s0/s1/s2
+
+	addi t0,zero,moveL
+	addi t1, zero,rotL
+	addi t2,zero,reset
+	addi t3, zero, rotR
+	addi t4,zero, moveR
+	addi t5,zero, moveD
+	
+	beq a0,t0,leftmove
+	beq a0,t1,rotate
+	beq a0,t2,reboot
+	beq a0,t3,rotate
+	beq a0,t4,rightmove
+	beq a0,t5,downmove
+
+leftmove:
+	addi s0,zero, W_COL
+	addi a0, zero, W_COL
+	call detect_collision		
+	beq s0,v0,unchanged			#if collision occurs, don't move
+	ldw t1,T_X(zero)
+	addi t1,t1,-1
+	stw t1,T_X(zero)
+	br changed
+
+rightmove:
+	addi s0,zero, E_COL
+	addi a0, zero, E_COL
+	call detect_collision
+	beq s0,v0,unchanged
+	ldw t1,T_X(zero)
+	addi t1,t1,1
+	stw t1,T_X(zero)
+	br changed
+
+downmove:
+	addi s0,zero, So_COL
+	addi a0, zero, So_COL
+	call detect_collision
+	beq s0,v0,unchanged
+	ldw t1,T_Y(zero)
+	addi t1,t1,1
+	stw t1,T_Y(zero)
+	br changed
+
+
+rotate:
+	ldw s0, T_orientation(zero)
+	ldw s1, T_X(zero)				#storing the original position of the tetromino
+	ldw s2, T_Y(zero)
+	call rotate_tetromino          # changing T_orientation
+	addi a0,zero,OVERLAP
+	call detect_collision
+	addi t0,zero,NONE
+	beq v0,t0,changed				# if no collison then all good
+	ldw t0, T_X(zero)
+	addi t1,zero,6	
+	blt t0,t1,to_the_right	       	#now we have to move the tetromino towards the center but we don't which side of the grid we are on
+	ldw t0,T_X(zero)								
+	addi t0,t0,-1
+	stw t0,T_X(zero)
+	addi a0,zero,OVERLAP
+	call detect_collision					#trying if overlap but moved to the left once
+	addi t0,zero,NONE
+	beq v0,t0,changed
+	ldw t0,T_X(zero)								
+	addi t0,t0,-1
+	stw t0,T_X(zero)
+	addi a0,zero,OVERLAP
+	call detect_collision					#trying if overlap but moved to the left twice
+	addi t0,zero,NONE
+	beq v0,t0,changed							
+	stw s0,T_orientation(zero)					# didn't work so we go back to previous values
+	stw s1,T_X(zero)
+	stw s2,T_Y(zero)
+	br unchanged
+	
+	to_the_right:
+ ldw t0,T_X(zero)								
+	addi t0,t0,1
+	stw t0,T_X(zero)
+	addi a0,zero,OVERLAP
+	call detect_collision					#trying if overlap but moved to the left once
+	addi t0,zero,NONE
+	beq v0,t0,changed
+	ldw t0,T_X(zero)								
+	addi t0,t0,1
+	stw t0,T_X(zero)
+	addi a0,zero,OVERLAP
+	call detect_collision					#trying if overlap but moved to the left twice
+	addi t0,zero,NONE
+	beq v0,t0,changed							
+	stw s0,T_orientation(zero)					# didn't work so we go back to previous values
+	stw s1,T_X(zero)
+	stw s2,T_Y(zero)
+	br unchanged	
+
+unchanged:
+	ldw s2,12(sp)
+	ldw s1, 8(sp)
+	ldw s0, 4(sp)
+	ldw ra, 0(sp)
+	addi sp,sp,16
+	addi v0,zero,1 #1 if failed to act
+	ret
+changed:
+
+	ldw s2,12(sp)
+	ldw s1, 8(sp)
+	ldw s0, 4(sp)
+	ldw ra, 0(sp)
+	addi sp,sp,16
+	add v0,zero,zero #0 if succeeded to act
+	ret
+reboot: 
+	ldw s2,12(sp)
+	ldw s1, 8(sp)
+	ldw s0, 4(sp)
+	ldw ra, 0(sp)
+	addi sp,sp,16
+	call reset_game
+	ret
+; END:act
+
+
+
+; BEGIN:reset_game
+reset_game:
+; END:reset_game
+
 font_data:
     .word 0xFC  ; 0
     .word 0x60  ; 1
