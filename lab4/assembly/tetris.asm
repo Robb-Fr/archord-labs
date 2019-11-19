@@ -556,24 +556,24 @@ rotate:
 	br unchanged
 	
 	to_the_right:
- ldw t0,T_X(zero)								
-	addi t0,t0,1
-	stw t0,T_X(zero)
-	addi a0,zero,OVERLAP
-	call detect_collision			# trying if overlap but moved to the left once
-	addi t0,zero,NONE
-	beq v0,t0,changed
-	ldw t0,T_X(zero)								
-	addi t0,t0,1
-	stw t0,T_X(zero)
-	addi a0,zero,OVERLAP
-	call detect_collision			# trying if overlap but moved to the left twice
-	addi t0,zero,NONE
-	beq v0,t0,changed							
-	stw s0,T_orientation(zero)		# didn't work so we go back to previous values
-	stw s1,T_X(zero)
-	stw s2,T_Y(zero)
-	br unchanged	
+ 		ldw t0,T_X(zero)								
+		addi t0,t0,1
+		stw t0,T_X(zero)
+		addi a0,zero,OVERLAP
+		call detect_collision		# trying if overlap but moved to the left once
+		addi t0,zero,NONE
+		beq v0,t0,changed
+		ldw t0,T_X(zero)								
+		addi t0,t0,1
+		stw t0,T_X(zero)
+		addi a0,zero,OVERLAP
+		call detect_collision		# trying if overlap but moved to the left twice
+		addi t0,zero,NONE
+		beq v0,t0,changed							
+		stw s0,T_orientation(zero)	# didn't work so we go back to previous values
+		stw s1,T_X(zero)
+		stw s2,T_Y(zero)
+		br unchanged	
 
 unchanged:
 	ldw s2,12(sp)
