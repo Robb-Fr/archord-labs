@@ -180,6 +180,8 @@ draw_gsa:
 		add a1, zero, s1
 		call get_gsa
 		
+		add a0, zero, s0
+		add a1, zero, s1			#putting back the arguments because they are caller-saved
 		beq v0, zero, next_draw
 		call set_pixel
 		
@@ -238,7 +240,15 @@ draw_tetromino:
         
 		add a0, s1, t1      # ao = x + offset
 		add a1, s2,t2       # a1 = y + offset
+
+		addi sp,sp,-4
+		stw t3,0(sp)		#pushing t3 on the stack because it's the loop limit
+
 		call set_gsa        # set the surrounding gsas around the anchor gsa
+
+		ldw t3,0(sp)
+		addi sp,sp,4		#popping t3 off the stack
+
 		addi s3,s3,4
         addi s4,s4,4
 		br mini_loop
@@ -293,7 +303,7 @@ detect_collision:
 	ldw t1, T_orientation(zero)
 	slli t0,t0,2
 	add t0,t0,t1     
-	slli t0,t0,2         	# s0 = (T_type*4 + T_orientation) << 2
+	slli t0,t0,2         	# t0 = (T_type*4 + T_orientation) << 2
     ldw s3, DRAW_Ax(t0)  	# s3 stores the pointer to the offset array for x
     ldw s4, DRAW_Ay(t0)  	# s4 stores the pointer to the offset array for y
 	
@@ -317,8 +327,12 @@ detect_collision:
  		ldw a1, T_Y(zero) 				# anchor y coordinate
 		call in_gsa
 		bne v0,zero,collision_exist		# would be out of gsa so collision
+
+		ldw a0, T_X(zero)				# putting back the arguments because they are caller-saved
+ 		ldw a1, T_Y(zero) 			
 		call get_gsa
 		bne v0,zero,collision_exist
+
 		addi t3,s3,12					# loop limit for iterating over tetrominoes
 
 	loop_overlap:                       # this loop checks if the current tetrominoes moved in the given direction provock a collision
@@ -327,15 +341,31 @@ detect_collision:
 		ldw t2, 0(s4)					# offset in array for y axis
 		ldw a0, T_X(zero)		 		# anchor x coordinate
  		ldw a1, T_Y(zero) 				# anchor y coordinate
+		
+		addi sp,sp,-4
+		stw t3,0(sp)					#pushing t3 on the stack because it's the loop limit
 
 		add a0, a0, t1       		 	# ao = x + offset
 		add a1, a1,t2         			# a1 = y + offset
 		call in_gsa
 		bne  v0,zero,collision_exist    # would be out of gsa so collision
+
+
+		ldw t1, 0(s3) 					# offset in array for x axis
+		ldw t2, 0(s4)					# offset in array for y axis
+		ldw a0, T_X(zero)		 		# anchor x coordinate
+ 		ldw a1, T_Y(zero) 				# anchor y coordinate
+		add a0, a0, t1       		 	# ao = x + offset
+		add a1, a1,t2         			# a1 = y + offset
+		
 		call get_gsa
 		bne v0,zero,collision_exist     # the gsa is already occupied
 		addi s3,s3,4
         addi s4,s4,4
+
+		ldw t3,0(sp)
+		addi sp,sp,4		#popping t3 off the stack
+
 		br loop_overlap
 
 
@@ -357,15 +387,31 @@ detect_collision:
 		ldw a0, T_X(zero)		 		# anchor x coordinate
  		ldw a1, T_Y(zero)		 		# anchor y coordinate
 
+		addi sp,sp,-4
+		stw t3,0(sp)					#pushing t3 on the stack because it's the loop limit
+
 		add a0, a0, t1       	 		# ao = x + offset
 		add a1, a1,t2        	 		# a1 = y + offset
 		addi a0,a0,-1           		# decrementing the y coordinate  because W_COL
 		call in_gsa
 		bne  v0,zero,collision_exist    # would be out of gsa so collision
+
+		ldw t1, 0(s3) 					# offset in array for x axis
+		ldw t2, 0(s4)					# offset in array for y axis
+		ldw a0, T_X(zero)		 		# anchor x coordinate
+ 		ldw a1, T_Y(zero) 				# anchor y coordinate
+		add a0, a0, t1       		 	# ao = x + offset
+		add a1, a1,t2         			# a1 = y + offset
+		addi a0,a0,-1           		# decrementing the y coordinate  because W_COL
+
 		call get_gsa
 		bne v0,zero,collision_exist     # the gsa is already occupied
 		addi s3,s3,4
         addi s4,s4,4
+
+		ldw t3,0(sp)
+		addi sp,sp,4		#popping t3 off the stack
+
 		br loop_west
 
 
@@ -387,15 +433,32 @@ detect_collision:
 		ldw a0, T_X(zero)	 			# anchor x coordinate
  		ldw a1, T_Y(zero)		 		# anchor y coordinate
 
+		addi sp,sp,-4
+		stw t3,0(sp)					#pushing t3 on the stack because it's the loop limit
+
 		add a0, a0, t1        			# ao = x + offset
 		add a1, a1,t2        	 		# a1 = y + offset
 		addi a0,a0,1           			# incrementing the y coordinate  because E_COL
 		call in_gsa
 		bne  v0,zero,collision_exist    # would be out of gsa so collision
+
+		ldw t1, 0(s3) 					# offset in array for x axis
+		ldw t2, 0(s4)					# offset in array for y axis
+		ldw a0, T_X(zero)		 		# anchor x coordinate
+ 		ldw a1, T_Y(zero) 				# anchor y coordinate
+		add a0, a0, t1       		 	# ao = x + offset
+		add a1, a1,t2         			# a1 = y + offset
+		addi a0,a0,1           	 		# incrementing the y coordinate  because E_COL
+
+
 		call get_gsa
 		bne v0,zero,collision_exist     # the gsa is already occupied
 		addi s3,s3,4
         addi s4,s4,4
+
+		ldw t3,0(sp)
+		addi sp,sp,4		#popping t3 off the stack
+
 		br loop_east
 
 
@@ -416,15 +479,31 @@ detect_collision:
 		ldw a0, T_X(zero) 				# anchor x coordinate
  		ldw a1, T_Y(zero)		 		# anchor y coordinate
 
+		addi sp,sp,-4
+		stw t3,0(sp)					#pushing t3 on the stack because it's the loop limit
+
 		add a0, a0, t1        			# ao = x + offset
 		add a1, a1,t2         			# a1 = y + offset
 		addi a1,a1,1           			# incrementing the y coordinate  because SO_COL
 		call in_gsa
 		bne  v0,zero,collision_exist    # would be out of gsa so collision
+
+			ldw t1, 0(s3) 					# offset in array for x axis
+		ldw t2, 0(s4)					# offset in array for y axis
+		ldw a0, T_X(zero)		 		# anchor x coordinate
+ 		ldw a1, T_Y(zero) 				# anchor y coordinate
+		add a0, a0, t1       		 	# ao = x + offset
+		add a1, a1,t2         			# a1 = y + offset
+		addi a1,a1,1           			# incrementing the y coordinate  because SO_COL
+
 		call get_gsa
 		bne v0,zero,collision_exist     # the gsa is already occupied
 		addi s3,s3,4
         addi s4,s4,4
+
+		ldw t3,0(sp)
+		addi sp,sp,4		#popping t3 off the stack
+
 		br loop_south
 
 
@@ -536,6 +615,8 @@ rotate:
 	ldw t0, T_X(zero)
 	addi t1,zero,6	
 	blt t0,t1,to_the_right	       	# now we have to move the tetromino towards the center but we don't know which side of the grid we are on
+
+	to_the_left:
 	ldw t0,T_X(zero)								
 	addi t0,t0,-1
 	stw t0,T_X(zero)
