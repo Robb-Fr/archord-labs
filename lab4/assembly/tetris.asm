@@ -683,11 +683,31 @@ reboot:
 	ret
 ; END:act
 
+; BEGIN:get_input
+get_input:
+; END:get_input
 
+; BEGIN:detect_full_line
+detect_full_line:
+; END:detect_full_line
+
+; BEGIN:remove_full_line
+remove_full_line:
+; END:remove_full_line
+
+; BEGIN:increment_score
+increment_score:
+; END:increment_score
+
+; BEGIN:display_score
+display_score:
+; END:display_score
 
 ; BEGIN:reset_game
 reset_game:
 ; END:reset_game
+
+
 
 font_data:
     .word 0xFC  ; 0
