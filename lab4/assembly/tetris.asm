@@ -67,15 +67,55 @@
   ;; TODO Insert your code here
 
 main:
-	addi sp, zero, 0x1FFC   
-	call generate_tetromino
+	addi sp, zero, 0x1FFC
+
+	call clear_leds
 	
+	addi a0, zero, 6
+	addi a1, zero, 2
+	addi a2, zero, PLACED
+	call set_gsa
+
+	addi a0, zero, 4
+	addi a1, zero, 1
+	addi a2, zero, PLACED
+	call set_gsa
+
+	addi a0, zero, 9
+	addi a1, zero, 1
+	addi a2, zero, PLACED
+	call set_gsa
+
+	call generate_tetromino
+	addi t0, zero, B
+	stw t0, T_type(zero)
+
 	addi a0, zero, FALLING
-
 	call draw_tetromino
-	call draw_gsa
 
-	br end
+	addi a0, zero, W_COL
+	call detect_collision
+	add s0, zero, v0
+
+	addi a0, zero, E_COL
+	call detect_collision
+	add s1, zero, v0
+
+	addi a0, zero, So_COL
+	call detect_collision
+	add s2, zero, v0
+
+	addi t0, zero, E
+	stw t0, T_orientation(zero)
+
+	addi a0, zero, OVERLAP
+	call detect_collision
+	add s3, zero, v0
+
+	call draw_gsa
+	ret
+; END:test
+
 ; BEGIN:clear_leds
 clear_leds:
 	stw zero, LEDS(zero)
@@ -376,6 +416,11 @@ detect_collision:
 		addi a0,a0,-1       			# decrementing the x coordinate  because W_COL
 		call in_gsa
 		bne v0,zero,collision_exist     # would be out of gsa so collision
+
+		ldw a0, T_X(zero)		 		# anchor x coordinate
+ 		ldw a1, T_Y(zero) 				# anchor y coordinate
+		addi a0,a0,-1       			# decrementing the x coordinate  because W_COL
+
 		call get_gsa
 		bne v0,zero,collision_exist
 		addi t3,s3,12 					# loop limit for iterating over tetrominoes
@@ -422,6 +467,11 @@ detect_collision:
 		addi a0,a0,1       				# incrementing the x coordinate  because E_COL
 		call in_gsa
 		bne v0,zero,collision_exist     # would be out of gsa so collision
+
+		ldw a0, T_X(zero) 				# anchor x coordinate
+ 		ldw a1, T_Y(zero) 				# anchor y coordinate
+		addi a0,a0,1       				# incrementing the x coordinate  because E_COL
+		
 		call get_gsa
 		bne v0,zero,collision_exist
 		addi t3,s3,12 					# loop limit for iterating over tetrominoes
@@ -468,6 +518,11 @@ detect_collision:
 		addi a1,a1,1       				# incrementing the y coordinate  because SO_COL
 		call in_gsa
 		bne v0,zero,collision_exist     # would be out of gsa so collision
+
+		ldw a0, T_X(zero) 				# anchor x coordinate
+ 		ldw a1, T_Y(zero) 				# anchor y coordinate
+		addi a1,a1,1       				# incrementing the y coordinate  because SO_COL
+
 		call get_gsa
 		bne v0,zero,collision_exist
 		addi t3,s3,12 					# loop limit for iterating over tetrominoes
@@ -508,13 +563,13 @@ detect_collision:
 
 
 	collision_exist:
+		add v0,zero,s1 		# the collision exists so we return the input
         ldw s4,16(sp)
 		ldw s2,12(sp)
 		ldw s1, 8(sp)
 		ldw s3, 4(sp)
 		ldw ra, 0(sp)
 		addi sp,sp,20
-		add v0,zero,s1 		# the collision exists so we return the input
 		ret
 
    no_collision:
@@ -964,5 +1019,3 @@ DRAW_Ay:                        ; address of shape arrays, y_axis
     .word L_E_Y
     .word L_So_Y
     .word L_W_Y
-
-end:
