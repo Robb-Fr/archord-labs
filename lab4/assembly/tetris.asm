@@ -64,6 +64,7 @@
   .equ Y_LIMIT, 8
 
 main:
+	addi sp,zero,0x1FFC
    #	addi sp,sp,-12
 	#	stw s1,8(sp)
 	#stw s0,4(sp)
@@ -87,7 +88,7 @@ play:
 			add a0,v0,zero
 			call act
 			no_input:
-				call a0,zero,FALLING
+				addi a0,zero,FALLING
 				call draw_tetromino
 
 
@@ -96,7 +97,7 @@ play:
 	addi a0,zero,moveD
 	call act
 	bne v0,zero,can_move_down     # can stil move the current tetromino
-	add a0,zero,PLACED
+	addi a0,zero,PLACED
 	call draw_tetromino
 	
 			 is_there_full_line:
@@ -149,7 +150,7 @@ set_pixel:
 ; BEGIN:wait
 wait:
 	addi a0, zero, 0x1
-	slli a0, a0, 5					# sets the 20th bit to 1 in order to have 2^20
+	slli a0, a0, 2					# sets the 20th bit to 1 in order to have 2^20
 
 	count_down:
 		addi a0, a0, -1 			# decrement argument by 1
@@ -952,12 +953,12 @@ display_score:
 			sub t2, t2, t1				# t2 = t2 - t1 - t0
 		
 		compute_d1:
-			blt zero, t1, compute_d2
+			blt t1,zero, compute_d2
 			addi t1, t1, -10				# t3 = nbr times 10 can be retrieved from t1
 			addi t3, t3, 1
 			br compute_d1
 		compute_d2:
-			blt zero, t2, digits_assign
+			blt t2,zero, digits_assign
 			addi t2, t2, -100
 			addi t4, t4, 1					# t4 = nbr times 100 can be retrieved from t2
 			br compute_d2
