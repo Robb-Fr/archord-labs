@@ -740,14 +740,172 @@ reboot:
 
 ; BEGIN:get_input
 get_input:
+	addi t1,zero,4
+	ldw	 t0,BUTTONS(t1)		#to stores edgecapture (edgecapture is at BUTTON+4)
+	andi t0,t0,31			#we want only the last 5 bits
+	add t4,zero,zero		#bit counter 
+	
+tom_loop:
+	beq t0,zero,no_input_back
+	andi t1,t0,1
+	bne t1,zero,yes_input_back
+	srli t0,t0,1
+	addi t4,t4,1
+	br tom_loop
+
+yes_input_back:
+	addi v0,zero,1
+	sll  v0,v0,t4
+	ret
+
+no_input_back:
+	add v0,zero,zero
+	ret
+
+
 ; END:get_input
 
 ; BEGIN:detect_full_line
 detect_full_line:
+	addi sp, sp, -16
+	stw s0, 0(sp)
+	stw s1, 4(sp)
+	stw s2, 8(sp)
+	stw ra, 12(sp)
+	addi s0, zero, 1
+	addi s1, zero, 7
+	addi s2, zero, 11
+	
+	loop_full_line:
+		add a0, zero, s2
+		add a1, zero, s1
+		call get_gsa
+		and s0, s0, v0
+		addi s2, s2, -1
+		bge s2, zero, loop_full_line
+		
+		next_y_full_line:
+			bne s0, zero, happy_ending
+			addi s0, zero, 1
+			addi s2, zero, 11
+			addi s1, s1, -1
+			bge s1, zero, loop_full_line
+
+		epic_loss:
+			addi v0, zero, 8
+			ldw s0, 0(sp)
+			ldw s1, 4(sp)
+			ldw s2, 8(sp)
+			ldw ra, 12(sp)
+			addi sp, sp, 16
+
+			ret
+		happy_ending:
+			add v0, zero, s1
+			ldw s0, 0(sp)
+			ldw s1, 4(sp)
+			ldw s2, 8(sp)
+			ldw ra, 12(sp)
+			addi sp, sp, 16
+
+			ret		
 ; END:detect_full_line
 
 ; BEGIN:remove_full_line
 remove_full_line:
+	addi sp,sp,-24
+	stw ra, 0(sp)
+	stw s0, 4(sp)
+	stw s1, 8(sp)
+	stw s2, 12(sp)
+	stw s3, 16(sp)
+	stw s4, 20(sp) 
+	 		
+
+	addi t0,zero,8
+	beq a0,t0, back_to_the_game   # if a0 = 8 then do nothing 
+
+	add s0,zero,a0			# s0 stores the y coordinate of the line to removve		
+	addi  s2,zero,4         # blink counter
+blink:
+	addi s1,zero,11
+	
+off:
+	add a0,s0,zero			# x coordinate
+	add a1,s1,zero			# y coordinate
+	add a2,zero,zero		# set the line off
+	
+	call set_gsa
+	
+	addi s1,s1,-1			
+	cmplt t7,s1,zero	
+	bne t7,zero,off
+
+	call draw_gsa
+	call wait
+	addi s2,s2,-1
+	beq s2,zero,make_lines_go_down
+	addi s1,zero,11
+
+on:
+	add a0,s0,zero			# x coordinate
+	add a1,s1,zero			# y coordinate
+	addi a2,zero,1			# set the line on
+	
+	call set_gsa
+	
+	addi s1,s1,-1			
+	cmplt t7,s1,zero	
+	bne t7,zero,on
+
+	call draw_gsa
+	call wait
+	addi s2,s2,-1
+	br blink
+
+make_lines_go_down:
+	add s2, zero,s0				#s2 stores the current y coordinate of the line to modifiy
+	add s1,zero,zero			#s1 stores the current x coordinate of the gsa to be modified
+	addi s3,zero,12				#s3 is the loop limit on the x coordinate
+	addi s4,zero,7				#s4 is the loop limit on the y coordinate
+
+
+
+	
+ move_line_down :
+	beq s2,s4,back_to_the_game
+	add s1,zero,zero   # reset the x coordinate
+
+	loop_over_gsa:
+		beq s1,s3,cont2
+		add a0,s1,zero  #a0 = x coordinate
+		addi a1,s2,1     #a1 = y + 1
+		call get_gsa
+		addi t0,t0,FALLING     
+		beq v0,t0,cont1  # checking if FALLING
+		add a0,s1,zero  #a0 = x coordinate
+		add a1,s2,zero     #a1 = y
+		add a2,v0,zero    # a2 = element on top of (x,y)
+		call set_gsa
+	cont1: 
+	addi s1,s1,1
+	br loop_over_gsa
+	cont2:
+	addi s2,s2,1
+	br move_line_down
+
+
+
+back_to_the_game:
+	ldw s4, 20(sp)
+	ldw s3, 16(sp)
+	ldw s2, 12(sp)
+	ldw s1, 8(sp)
+	ldw s0, 4(sp)
+	ldw ra, 0(sp)
+	addi sp,sp,24	
+	ret
+
 ; END:remove_full_line
 
 ; BEGIN:increment_score
