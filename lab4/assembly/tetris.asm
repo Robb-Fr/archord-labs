@@ -935,17 +935,17 @@ display_score:
 	add t4, zero, zero		# t4 = digit 2
 	addi t5, zero, 9		# t5 = i
 
-	addi t5, zero, 10
-	addi t6, zero, 100
+	addi t6, zero, 10
+	addi t7, zero, 100
 	
 	get_digits:
 		isolate_d0:
-			blt t0, t5, isolate_d1
-			sub t0, t0, t5				# t0 -= 10
+			blt t0, t6, isolate_d1
+			sub t0, t0, t6				# t0 -= 10
 			br isolate_d0
 		isolate_d1:
-			blt t1, t6, isolate_d2
-			sub t1, t1, t6				# t1 -= 100
+			blt t1, t7, isolate_d2
+			sub t1, t1, t7				# t1 -= 100
 			br isolate_d1
 		isolate_d2:
 			sub t1, t1, t0				# t1 = t1 - t0
