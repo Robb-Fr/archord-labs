@@ -70,13 +70,15 @@ main:
 	#stw s0,4(sp)
 	#stw ra,0(sp)
 begin:
-	addi s0,zero,5  #s0 = RATE
+	addi s0,zero,RATE  #s0 = RATE
 	call reset_game
 
 play:
- 
+
 	can_move_down:
 		add s1,zero,s0  # s1 is i
+		addi a0,zero,FALLING
+		call draw_tetromino
 		user_input:
 			call draw_gsa
 			call display_score
@@ -87,16 +89,20 @@ play:
 			beq v0,zero,no_input
 			add a0,v0,zero
 			call act
+			addi s1,s1,-1
+			addi a0,zero,FALLING
+			call draw_tetromino
+			beq s1,zero,after_user_input
 			no_input:
-				addi a0,zero,FALLING
-				call draw_tetromino
+			br user_input
+			
 
-
+	after_user_input:
 	addi a0, zero, NOTHING
 	call draw_tetromino
 	addi a0,zero,moveD
 	call act
-	bne v0,zero,can_move_down     # can stil move the current tetromino
+	beq v0,zero,can_move_down     # can stil move the current tetromino
 	addi a0,zero,PLACED
 	call draw_tetromino
 	
@@ -112,6 +118,8 @@ play:
 	
 check_over:
 	call generate_tetromino        # generate new tetromino and check if we haven't lost
+	addi a0,zero,NOTHING
+	call draw_tetromino
 	addi a0,zero,OVERLAP
 	call detect_collision
 	addi t0,zero,OVERLAP
@@ -251,18 +259,21 @@ draw_gsa:
 
 ; BEGIN:draw_tetromino
 draw_tetromino:
-	addi sp,sp,-20      	# pushing return adress and saved registers on the stack
+	addi sp,sp,-24      	# pushing return adress and saved registers on the stack
 	stw ra, 0(sp)            
 	stw s3, 4(sp)
 	stw s1, 8(sp)       	# stack = top -> ra/s0/s1/s2
 	stw s2, 12(sp)
     stw s4, 16(sp)
+	stw s5, 20(sp)
 
 	ldw s1, T_X(zero)  		# s1 = x position of the anchor point
 	ldw s2, T_Y(zero)  		# s2 = y position of the anchor point
-	add a2,a0,zero     		# a2 stores the p value of the GSA
+	add s5,a0,zero     		# s5 stores the p value of the GSA
+
 	add a0, s1, zero   		# setting the arguments for set_gsa
 	add a1, s2, zero
+	add a2, s5,zero
 
 	call set_gsa       		# setting the anchor point in the gsa
 
@@ -283,6 +294,7 @@ draw_tetromino:
         
 		add a0, s1, t1      # ao = x + offset
 		add a1, s2,t2       # a1 = y + offset
+		add a2,zero,s5
 
 		addi sp,sp,-4
 		stw t3,0(sp)		#pushing t3 on the stack because it's the loop limit
@@ -298,12 +310,13 @@ draw_tetromino:
 
 
 	return_time:
+		ldw s5,20(sp)
         ldw s4,16(sp)
 		ldw s2,12(sp)
 		ldw s1, 8(sp)
 		ldw s3, 4(sp)
 		ldw ra, 0(sp)
-		addi sp,sp,20
+		addi sp,sp,24
 	ret
 ; END:draw_tetromino
 
@@ -349,7 +362,7 @@ detect_collision:
 	slli t0,t0,2         	# t0 = (T_type*4 + T_orientation) << 2
     ldw s3, DRAW_Ax(t0)  	# s3 stores the pointer to the offset array for x
     ldw s4, DRAW_Ay(t0)  	# s4 stores the pointer to the offset array for y
-	
+
 	# checking in which collison we are
 	which_collision_check:
 		addi t0, zero, W_COL
@@ -566,6 +579,7 @@ detect_collision:
 
 
 	collision_exist:
+
 		add v0,zero,s1 		# the collision exists so we return the input
         ldw s4,16(sp)
 		ldw s2,12(sp)
@@ -576,6 +590,7 @@ detect_collision:
 		ret
 
    no_collision:
+
     	ldw s4,16(sp)
 		ldw s2,12(sp)
 		ldw s1, 8(sp)
