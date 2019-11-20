@@ -158,7 +158,7 @@ set_pixel:
 ; BEGIN:wait
 wait:
 	addi a0, zero, 0x1
-	slli a0, a0, 2					# sets the 20th bit to 1 in order to have 2^20
+	slli a0, a0, 20					# sets the 20th bit to 1 in order to have 2^20
 
 	count_down:
 		addi a0, a0, -1 			# decrement argument by 1
@@ -758,8 +758,8 @@ reboot:
 
 ; BEGIN:get_input
 get_input:
-	addi t1,zero,4
-	ldw	 t0,BUTTONS(t1)		#to stores edgecapture (edgecapture is at BUTTON+4)
+
+	ldw	 t0,BUTTONS+4(zero)		#to stores edgecapture (edgecapture is at BUTTON+4)
 	andi t0,t0,31			#we want only the last 5 bits
 	add t4,zero,zero		#bit counter 
 	
@@ -774,10 +774,12 @@ tom_loop:
 yes_input_back:
 	addi v0,zero,1
 	sll  v0,v0,t4
+	stw zero,BUTTONS+4(zero)
 	ret
 
 no_input_back:
 	add v0,zero,zero
+	stw zero,BUTTONS+4(zero)
 	ret
 
 
