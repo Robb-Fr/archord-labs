@@ -918,6 +918,54 @@ display_score:
 
 ; BEGIN:reset_game
 reset_game:
+	addi sp,sp,-24
+	stw ra, 0(sp)
+	stw s0, 4(sp)
+	stw s1, 8(sp)
+	stw s2, 12(sp)
+	stw s3, 16(sp)
+	stw s4, 20(sp) 
+
+
+	stw zero,SCORE(zero) # reset the score to zero
+
+
+	# resetting the entire gsa
+
+	addi s0,zero,-1 #loop limit for both loops
+	addi s1,zero,11 #s1 = current x coordinate 
+	addi s2,zero,7  # s2 = current y coordinate
+
+	loop_over_y:
+		beq s2,s0, put_tetromino
+		addi s1,zero,11
+
+	loop_over_x:
+		beq s1,s0, conty
+		add a0,s1,zero   
+		add a1,s2,zero			# setting the arguments for set_gsa
+		add a2,zero,zero 
+		call set_gsa
+		addi s1,s1,-1
+		br loop_over_x
+
+	conty:
+	addi s2,s2,-1
+	br loop_over_y
+
+	put_tetromino:
+	call generate_tetromino
+	
+
+
+	ldw s4, 20(sp)
+	ldw s3, 16(sp)
+	ldw s2, 12(sp)
+	ldw s1, 8(sp)
+	ldw s0, 4(sp)
+	ldw ra, 0(sp)
+	addi sp,sp,24	
+	ret
 ; END:reset_game
 
 
