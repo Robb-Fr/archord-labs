@@ -910,10 +910,79 @@ back_to_the_game:
 
 ; BEGIN:increment_score
 increment_score:
+	ldw t0, SCORE(zero)
+	addi t1, zero, 999
+	addi t0, t0, 1
+
+	bge t0, t1, ceiling		# if (SCORE+1 ≥ 999) SCORE = 999
+	stw t0, SCORE(zero)
+	ret
+
+	ceiling:
+	stw t1, SCORE(zero)		
+	ret
 ; END:increment_score
 
 ; BEGIN:display_score
 display_score:
+	ldw t0, SCORE(zero)
+	add t1, t0, zero		
+	add t2, t0, zero		# t0 ... t2 = SCORE
+	add t3, zero, zero		# t3 = digit 1
+	add t4, zero, zero		# t4 = digit 2
+	addi t5, zero, 9		# t5 = i
+
+	addi t5, zero, 10
+	addi t6, zero, 100
+	
+	get_digits:
+		isolate_d0:
+			blt t0, t5, isolate_d1
+			sub t0, t0, t5				# t0 -= 10
+			br isolate_d0
+		isolate_d1:
+			blt t1, t6, isolate_d2
+			sub t1, t1, t6				# t1 -= 100
+			br isolate_d1
+		isolate_d2:
+			sub t1, t1, t0				# t1 = t1 - t0
+			sub t2, t2, t0			
+			sub t2, t2, t1				# t2 = t2 - t1 - t0
+		
+		compute_d1:
+			blt zero, t1, compute_d2
+			addi t1, t1, -10				# t3 = nbr times 10 can be retrieved from t1
+			addi t3, t3, 1
+			br compute_d1
+		compute_d2:
+			blt zero, t2, digits_assign
+			addi, t2, t2, -100
+			addi t4, t4, 1					# t4 = nbr times 100 can be retrieved from t2
+			br compute_d2
+	
+	digits_assign:
+		blt t5, zero, end_display_score		# end if i < 0
+		sll t7, t5, 2
+		ldw t6, font_data(t7)				# t6 = font_data(i*4)
+
+		bne t0, t5, assign_d1				# if (t0 == i)
+		stw t6, SEVEN_SEGS+12(zero)			# SEVEN_SEGS[3] = i
+		assign_d1:
+		bne t3, t5, assign_d2				# if (t3 == i)
+		stw t6, SEVEN_SEGS+8(zero)			# SEVEN_SEGS[2] = i
+		assign_d2:
+		bne t4, t5, next_assign				# id (t4 == i)
+		stw t6, SEVEN_SEGS+4(zero)			# SEVEN_SEGS[1] = i
+		
+		next_assign:
+		addi t5, t5, -1						
+		br digits_assign			
+		
+	end_display_score:
+		ldw t6, font_data(zero)
+		stw t6, SEVEN_SEGS(zero)			# SEVEN_SEGS[0] = 0
+		ret
+		
 ; END:display_score
 
 ; BEGIN:reset_game
