@@ -63,58 +63,60 @@
   .equ X_LIMIT, 12
   .equ Y_LIMIT, 8
 
-
-  ;; TODO Insert your code here
-
 main:
-	addi sp, zero, 0x1FFC
+   #	addi sp,sp,-12
+	#	stw s1,8(sp)
+	#stw s0,4(sp)
+	#stw ra,0(sp)
+begin:
+	addi s0,zero,5  #s0 = RATE
+	call reset_game
 
-	call clear_leds
-	
-	addi a0, zero, 6
-	addi a1, zero, 2
-	addi a2, zero, PLACED
-	call set_gsa
+play:
+ 
+	can_move_down:
+		add s1,zero,s0  # s1 is i
+		user_input:
+			call draw_gsa
+			call display_score
+			addi a0,zero,NOTHING
+			call draw_tetromino
+			call wait
+			call get_input
+			beq v0,zero,no_input
+			add a0,v0,zero
+			call act
+			no_input:
+				call a0,zero,FALLING
+				call draw_tetromino
 
-	addi a0, zero, 4
-	addi a1, zero, 1
-	addi a2, zero, PLACED
-	call set_gsa
 
-	addi a0, zero, 9
-	addi a1, zero, 1
-	addi a2, zero, PLACED
-	call set_gsa
-
-	call generate_tetromino
-	addi t0, zero, B
-	stw t0, T_type(zero)
-
-	addi a0, zero, FALLING
+	addi a0, zero, NOTHING
 	call draw_tetromino
-
-	addi a0, zero, W_COL
+	addi a0,zero,moveD
+	call act
+	bne v0,zero,can_move_down     # can stil move the current tetromino
+	add a0,zero,PLACED
+	call draw_tetromino
+	
+			 is_there_full_line:
+				call detect_full_line
+				addi t0,zero,8
+				beq v0,t0,check_over
+				call increment_score
+				add a0,v0,zero
+				call remove_full_line
+				br is_there_full_line
+						
+	
+check_over:
+	call generate_tetromino        # generate new tetromino and check if we haven't lost
+	addi a0,zero,OVERLAP
 	call detect_collision
-	add s0, zero, v0
-
-	addi a0, zero, E_COL
-	call detect_collision
-	add s1, zero, v0
-
-	addi a0, zero, So_COL
-	call detect_collision
-	add s2, zero, v0
-
-	addi t0, zero, E
-	stw t0, T_orientation(zero)
-
-	addi a0, zero, OVERLAP
-	call detect_collision
-	add s3, zero, v0
-
-	call draw_gsa
-	ret
-; END:test
+	addi t0,zero,OVERLAP
+	bne  v0,t0,play
+	br begin
+	
 
 ; BEGIN:clear_leds
 clear_leds:
@@ -956,13 +958,13 @@ display_score:
 			br compute_d1
 		compute_d2:
 			blt zero, t2, digits_assign
-			addi, t2, t2, -100
+			addi t2, t2, -100
 			addi t4, t4, 1					# t4 = nbr times 100 can be retrieved from t2
 			br compute_d2
 	
 	digits_assign:
 		blt t5, zero, end_display_score		# end if i < 0
-		sll t7, t5, 2
+		slli t7, t5, 2
 		ldw t6, font_data(t7)				# t6 = font_data(i*4)
 
 		bne t0, t5, assign_d1				# if (t0 == i)
