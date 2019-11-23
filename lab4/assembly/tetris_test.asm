@@ -63,22 +63,88 @@
   .equ X_LIMIT, 12
   .equ Y_LIMIT, 8
 
+; BEGIN:main
 main:
-	addi sp,zero,0x1FFC
-   #	addi sp,sp,-12
-	#	stw s1,8(sp)
-	#stw s0,4(sp)
-	#stw ra,0(sp)
-begin:
-	call clear_leds
-	call generate_tetromino
-	addi a0,zero,FALLING
-	call draw_tetromino
-	call draw_gsa
-	addi a0,zero,NOTHING
-	call draw_tetromino
-	waait_long:
-	br waait_long
+	addi sp, zero, 0x2000
+	addi s0, zero, 5 ; Rate = 5
+
+	call reset_game
+
+	game:
+		falling:
+			add s1, zero, s0
+			rate:
+				addi s1, s1, -1
+				call draw_gsa
+				call display_score
+			
+				addi a0, zero, NOTHING
+				call draw_tetromino
+	
+				call wait
+			
+				call get_input
+
+				beq v0, zero, no_input
+
+				add a0, zero, v0
+				call act
+
+				no_input:
+
+				addi a0, zero, FALLING
+				call draw_tetromino
+
+				bne s1, zero, rate
+
+			addi a0, zero, NOTHING
+			call draw_tetromino
+
+			addi a0, zero, moveD
+			call act
+			add s1, zero, v0
+
+			addi a0, zero, FALLING
+			call draw_tetromino
+
+			beq s1, zero, falling
+
+		addi a0, zero, PLACED
+		call draw_tetromino
+
+		full_lines:
+	
+			call detect_full_line
+			addi t0, zero, 8
+	
+			beq v0, t0, no_more_full
+			add a0, zero, v0
+			
+			call remove_full_line
+			call increment_score
+			jmpi full_lines
+
+		no_more_full:
+
+		call generate_tetromino
+
+		addi a0,zero,NOTHING
+		call draw_tetromino
+
+		addi a0, zero, OVERLAP
+		call detect_collision
+		
+		addi t0, zero, NONE
+		bne v0, t0, failed
+
+		addi a0, zero, FALLING
+		call draw_tetromino
+
+		jmpi game
+
+	failed:
+		jmpi main
+; END:main
 	
 
 ; BEGIN:clear_leds
@@ -112,7 +178,7 @@ set_pixel:
 ; BEGIN:wait
 wait:
 	addi a0, zero, 0x1
-	slli a0, a0, 2					# sets the 20th bit to 1 in order to have 2^20
+	slli a0, a0, 20					# sets the 20th bit to 1 in order to have 2^20
 
 	count_down:
 		addi a0, a0, -1 			# decrement argument by 1
@@ -316,7 +382,7 @@ detect_collision:
 	slli t0,t0,2         	# t0 = (T_type*4 + T_orientation) << 2
     ldw s3, DRAW_Ax(t0)  	# s3 stores the pointer to the offset array for x
     ldw s4, DRAW_Ay(t0)  	# s4 stores the pointer to the offset array for y
-	
+
 	# checking in which collison we are
 	which_collision_check:
 		addi t0, zero, W_COL
@@ -533,6 +599,7 @@ detect_collision:
 
 
 	collision_exist:
+
 		add v0,zero,s1 		# the collision exists so we return the input
         ldw s4,16(sp)
 		ldw s2,12(sp)
@@ -543,6 +610,7 @@ detect_collision:
 		ret
 
    no_collision:
+
     	ldw s4,16(sp)
 		ldw s2,12(sp)
 		ldw s1, 8(sp)
@@ -710,8 +778,8 @@ reboot:
 
 ; BEGIN:get_input
 get_input:
-	addi t1,zero,4
-	ldw	 t0,BUTTONS(t1)		#to stores edgecapture (edgecapture is at BUTTON+4)
+
+	ldw	 t0,BUTTONS+4(zero)		#to stores edgecapture (edgecapture is at BUTTON+4)
 	andi t0,t0,31			#we want only the last 5 bits
 	add t4,zero,zero		#bit counter 
 	
@@ -726,10 +794,12 @@ tom_loop:
 yes_input_back:
 	addi v0,zero,1
 	sll  v0,v0,t4
+	stw zero,BUTTONS+4(zero)
 	ret
 
 no_input_back:
 	add v0,zero,zero
+	stw zero,BUTTONS+4(zero)
 	ret
 
 
