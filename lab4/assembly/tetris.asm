@@ -65,14 +65,13 @@
 
 ; BEGIN:main
 main:
-	addi sp, zero, 0x2000
-	addi s0, zero, 5 ; Rate = 5
+	addi sp, zero, 0x1FFC
 
 	call reset_game
 
 	game:
 		falling:
-			add s1, zero, s0
+			addi s1, zero, RATE
 			rate:
 				addi s1, s1, -1
 				call draw_gsa
@@ -122,7 +121,7 @@ main:
 			
 			call remove_full_line
 			call increment_score
-			jmpi full_lines
+			br full_lines
 
 		no_more_full:
 
@@ -137,11 +136,10 @@ main:
 		addi a0, zero, FALLING
 		call draw_tetromino
 
-		jmpi game
+		br game
 
-	failed:
-		add ra, zero, zero
-		ret
+	failed:	
+		br main
 ; END:main
 	
 
@@ -176,7 +174,7 @@ set_pixel:
 ; BEGIN:wait
 wait:
 	addi a0, zero, 0x1
-	slli a0, a0, 20				# sets the 20th bit to 1 in order to have 2^20
+	slli a0, a0, 0				# sets the 20th bit to 1 in order to have 2^20
 
 	count_down:
 		addi a0, a0, -1 			# decrement argument by 1
@@ -902,7 +900,7 @@ deci_divide:
 
 ; BEGIN:reset_game
 reset_game:
-	addi sp,sp,-24
+	addi sp, sp, -24
 	stw ra, 0(sp)
 	stw s0, 4(sp)
 	stw s1, 8(sp)
@@ -910,37 +908,35 @@ reset_game:
 	stw s3, 16(sp)
 	stw s4, 20(sp) 
 
-
-	stw zero,SCORE(zero) # reset the score to zero
-
+	stw zero, SCORE(zero) # reset the score to zero
 
 	# resetting the entire gsa
 
-	addi s0,zero,-1 #loop limit for both loops
-	addi s1,zero,11 #s1 = current x coordinate 
-	addi s2,zero,7  # s2 = current y coordinate
+	addi s0 , zero, -1		# loop limit for both loops
+	addi s1, zero, 11 		# s1 = current x coordinate 
+	addi s2, zero, 7  		# s2 = current y coordinate
 
 	loop_over_y:
-		beq s2,s0, put_tetromino
-		addi s1,zero,11
+		beq s2, s0, put_tetromino
+		addi s1, zero, 11
 
 	loop_over_x:
-		beq s1,s0, conty
-		add a0,s1,zero   
-		add a1,s2,zero			# setting the arguments for set_gsa
-		add a2,zero,zero 
+		beq s1, s0, conty
+		add a0, s1, zero   
+		add a1, s2, zero		# setting the arguments for set_gsa
+		addi a2, zero, NOTHING 
 		call set_gsa
-		addi s1,s1,-1
+		addi s1, s1, -1
 		br loop_over_x
 
 	conty:
-	addi s2,s2,-1
-	br loop_over_y
+		addi s2, s2, -1
+		br loop_over_y
 
 	put_tetromino:
-	call generate_tetromino
-	
-
+		call generate_tetromino
+		addi a0, zero, FALLING
+		call draw_tetromino
 
 	ldw s4, 20(sp)
 	ldw s3, 16(sp)
@@ -948,7 +944,8 @@ reset_game:
 	ldw s1, 8(sp)
 	ldw s0, 4(sp)
 	ldw ra, 0(sp)
-	addi sp,sp,24	
+	addi sp, sp, 24
+	
 	ret
 ; END:reset_game
 
