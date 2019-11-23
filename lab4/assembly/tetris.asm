@@ -629,9 +629,9 @@ reboot:
 
 ; BEGIN:get_input
 get_input:
-	ldw	 t0,BUTTONS+4(zero)		# t0 stores edgecapture (edgecapture is at BUTTON+4)
-	andi t0, t0, 31				# we want only the last 5 bits
-	add t4, zero, zero			# bit counter 
+	ldw	 t0,BUTTONS+4(zero)			# t0 stores edgecapture (edgecapture is at BUTTON+4)
+	andi t0, t0, 31					# we want only the last 5 bits
+	add t4, zero, zero				# bit counter 
 	
 tom_loop:
 	beq t0, zero, no_input_back		# if (no more bits) stop
@@ -692,6 +692,7 @@ detect_full_line:
 		happy_ending:
 			add v0, zero, s2
 
+	end_detect_full_line:
 	ldw s0, 0(sp)
 	ldw s1, 4(sp)
 	ldw s2, 8(sp)
