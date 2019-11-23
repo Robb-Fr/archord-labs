@@ -895,6 +895,7 @@ deci_divide:
 		addi v0, v0, 1
 		br loop_deci_divide
 	end_deci_divide:
+		add v1, zero, a0
 		ret
 ; END:helper
 
