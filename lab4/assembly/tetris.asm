@@ -143,7 +143,7 @@ set_pixel:
 
 	slli t2, a0, 3
 	add t2, t2, a1
-	andi t2, t2, 0x3F	# t2 = (8*x+y)%32
+	andi t2, t2, 0x1F	# t2 = (8*x+y)%32
 
 	addi t3, zero, 1
 	sll t3, t3, t2		# t3 = 1 << (8*x+y)%32
@@ -169,17 +169,17 @@ wait:
 
 ; BEGIN:get_gsa
 get_gsa:
-	slli t1, a0, 3     		# t1 stores the value from 0 to 95, here i do t1 = x*8
-	add t1, t1, a1     		# here i get t1 = x*8 + y
-	slli t1, t1, 2     		# t1 is shifted by 2 to get a mutliple of 4
-	ldw v0, GSA(t1)  		# loading the correct GSA square in v0
+	slli t1, a0, 3     		# t1 = x*8
+	add t1, t1, a1     		# t1 = x*8 + y
+	slli t1, t1, 2     		# t1 = t1*4 (valid word address)
+	ldw v0, GSA(t1)  		# v0 = GSA(x,y)
 	ret
 ; END:get_gsa
 
 ; BEGIN:in_gsa
 in_gsa:
-	addi t0, zero, 12			# x must not get to this value
-	addi t1, zero, 8			# y must not get to this value	
+	addi t0, zero, 12			# t0 = x max
+	addi t1, zero, 8			# t1 = y max
 
 	blt a0, zero, flag_outside	# if x < 0
 	bge a0, t0, flag_outside	# if x ≥ 12
@@ -190,22 +190,19 @@ in_gsa:
 
 	flag_outside:
 		addi v0, zero, 1		# set flag on
-		br return
+		ret
 	is_ok:
 		add v0, zero, zero		# set no flag
-		br return
-
-	return:
-	ret
+		ret
 ; END:in_gsa
 
 ; BEGIN:set_gsa
 set_gsa:
-	slli t1, a0, 3    	# t1 stores the value between 0 and 95, here i do t1 = x*8
-	add t1, t1, a1     	# i do t1 = x*8 + y
-	slli t1, t1, 2      # shifting t1 by 2 to get a multiple of 4
+	slli t1, a0, 3    	# t1 = x*8
+	add t1, t1, a1     	# t1 = x*8 + y
+	slli t1, t1, 2      # t1 = t1*4 (valid address)
 
-	stw a2, GSA(t1)   	# storing p taking value in (NOTHING,PLACED,FALLING) in the correct GSA square
+	stw a2, GSA(t1)   	# storing p taking value in (NOTHING,PLACED,FALLING) in GSA(x,y)
 	
 	ret
 ; END:set_gsa
@@ -224,16 +221,16 @@ draw_gsa:
 	addi s2, zero, 11	# x max
 	addi s3, zero, 7	# y max
 
-	call clear_leds
+	call clear_leds		# takes no arguments
 	
 	loop_draw:
-		add a0, zero, s0
-		add a1, zero, s1
-		call get_gsa
+		add a0, zero, s0			# set a0 to x
+		add a1, zero, s1			# set a1 to y
+		call get_gsa				# v0 stores GSA(x,y)
 		
-		add a0, zero, s0
-		add a1, zero, s1			#putting back the arguments because they are caller-saved
-		beq v0, zero, next_draw
+		add a0, zero, s0			# set a0 to x
+		add a1, zero, s1			# set a1 to y
+		beq v0, zero, next_draw		# if (GSA(x,y) == 0) no need to set pixel
 		call set_pixel
 		
 		next_draw:
@@ -242,8 +239,8 @@ draw_gsa:
 			br loop_draw
 			next_j_draw:
 				beq s0, s2, end_draw	# if (x == x max) end loop
-				add s1, zero, zero		# restart y
-				addi s0, s0, 1			# else increment x
+				add s1, zero, zero		# else restart y
+				addi s0, s0, 1			# increment x
 				br loop_draw
 
 	end_draw:
@@ -259,64 +256,60 @@ draw_gsa:
 
 ; BEGIN:draw_tetromino
 draw_tetromino:
-	addi sp,sp,-24      	# pushing return adress and saved registers on the stack
+	addi sp, sp, -28
 	stw ra, 0(sp)            
-	stw s3, 4(sp)
-	stw s1, 8(sp)       	# stack = top -> ra/s0/s1/s2
+	stw s0, 4(sp)
+	stw s1, 8(sp)       	
 	stw s2, 12(sp)
-    stw s4, 16(sp)
-	stw s5, 20(sp)
+    stw s3, 16(sp)
+	stw s4, 20(sp)
+	stw s5, 24(sp)			# stack = top -> ra/s0/s1/s2/s3/s4/s5
 
 	ldw s1, T_X(zero)  		# s1 = x position of the anchor point
 	ldw s2, T_Y(zero)  		# s2 = y position of the anchor point
-	add s5,a0,zero     		# s5 stores the p value of the GSA
+	add s5, a0, zero     	# s5 stores the p value of the GSA
 
-	add a0, s1, zero   		# setting the arguments for set_gsa
+	add a0, s1, zero   		# setting the arguments for set_gsa call
 	add a1, s2, zero
-	add a2, s5,zero
+	add a2, s5, zero
 
-	call set_gsa       		# setting the anchor point in the gsa
+	call set_gsa       		# set the anchor point in the gsa
 
 	ldw t0, T_type(zero)
 	ldw t1, T_orientation(zero)
-	slli t0,t0,2
-	add t0,t0,t1     
-	slli t0,t0,2         	# t0 = (T_type*4 + T_orientation) << 2
+	slli t0, t0, 2
+	add t0, t0, t1     
+	slli t0, t0, 2         	# t0 = (T_type*4 + T_orientation) << 2
     ldw s3, DRAW_Ax(t0)  	# s3 stores the pointer to the offset array x
     ldw s4, DRAW_Ay(t0)  	# s4 stores the pointer to the offset array y
-	addi t3,s3,12 			# loop limit
+	addi s0, s3, 12 		# loop limit
 
 	# this loop sets the gsa for the surrouding point around the anchor point
 	mini_loop:                               
-		beq s3,t3, return_time
+		beq s3, s0, return_time
 		ldw t1, 0(s3) 		# offset in array for x axis
 		ldw t2, 0(s4) 		# offset in array for y axis
         
 		add a0, s1, t1      # ao = x + offset
-		add a1, s2,t2       # a1 = y + offset
-		add a2,zero,s5
-
-		addi sp,sp,-4
-		stw t3,0(sp)		#pushing t3 on the stack because it's the loop limit
+		add a1, s2, t2      # a1 = y + offset
+		add a2, zero, s5	# a2 = p value
 
 		call set_gsa        # set the surrounding gsas around the anchor gsa
 
-		ldw t3,0(sp)
-		addi sp,sp,4		#popping t3 off the stack
-
-		addi s3,s3,4
-        addi s4,s4,4
+		addi s3, s3, 4
+        addi s4, s4, 4
 		br mini_loop
 
 
 	return_time:
-		ldw s5,20(sp)
-        ldw s4,16(sp)
-		ldw s2,12(sp)
+		ldw s5, 24(sp)
+		ldw s4, 20(sp)
+        ldw s3, 16(sp)
+		ldw s2, 12(sp)
 		ldw s1, 8(sp)
-		ldw s3, 4(sp)
+		ldw s0, 4(sp)
 		ldw ra, 0(sp)
-		addi sp,sp,24
+		addi sp, sp, 28
 	ret
 ; END:draw_tetromino
 
@@ -324,14 +317,14 @@ draw_tetromino:
 generate_tetromino:
 	loop:
 		ldw t0, RANDOM_NUM(zero)
-		andi t0,t0,0x7
-		cmpgei t1, t0, 5
-		bne t1,zero, loop
+		andi t0, t0, 0x7			# t0 = RANDOM_NUM
+		cmpgei t1, t0, 5			# t1 = t0 ≥ 5 ? 1 : 0
+		bne t1, zero, loop			# if (t1 > 4) generate new tetromino
 
-		stw t0,T_type(zero) 		# random tetromino shape
-		addi t0,zero,6
-		addi t1,zero,1
-		addi t2, zero, N
+		stw t0, T_type(zero) 		# random tetromino shape in [0,4]
+		addi t0, zero, 6			# t0 = 6
+		addi t1, zero, 1			# t1 = 1
+		addi t2, zero, N			# t2 = N
 		stw t0, T_X(zero) 			# x = 6
 		stw t1, T_Y(zero) 			# y = 1
 		stw t2, T_orientation(zero) # orientation = North
@@ -347,296 +340,174 @@ detect_collision:
 # for E_COL we increment every x coordinate
 # for OVERLAP, we directly check the current coordinates
 # for NONE, output NONE
-	addi sp,sp,-20      	# pushing return adress and saved registers on the stack
+	addi sp,sp,-28      	# pushing return adress and saved registers on the stack
 	stw ra, 0(sp)            
-	stw s3, 4(sp)
-	stw s1, 8(sp)       	# stack = top -> ra/s3/s0/s1/s2
+	stw s0, 4(sp)
+	stw s1, 8(sp)       	# stack = top -> ra/s0/s1/s2/s3/s4/s5
 	stw s2, 12(sp)
-    stw s4, 16(sp)
+    stw s3, 16(sp)
+	stw s4, 20(sp)
+	stw s5, 24(sp)
 
     add s1, zero, a0	 	# s1 stores the collision we are interested in
 	ldw t0, T_type(zero)
 	ldw t1, T_orientation(zero)
-	slli t0,t0,2
-	add t0,t0,t1     
-	slli t0,t0,2         	# t0 = (T_type*4 + T_orientation) << 2
+	slli t0, t0, 2
+	add t0, t0, t1     
+	slli t0, t0, 2         	# t0 = (T_type*4 + T_orientation) << 2
     ldw s3, DRAW_Ax(t0)  	# s3 stores the pointer to the offset array for x
     ldw s4, DRAW_Ay(t0)  	# s4 stores the pointer to the offset array for y
-
-	# checking in which collison we are
-	which_collision_check:
-		addi t0, zero, W_COL
-		addi t1,zero, E_COL
-		addi t2,zero, So_COL
-		addi t3,zero, OVERLAP
-		beq s1,t0,west
-		beq s1,t1,east
-		beq s1,t2,south
-		beq s1,t3,overlap
-		br no_collision
-
-
+	
 
 	# in_gsa and get_gsa only use register t0 and t1, we are safe to use the others
-    overlap:
+    setup:
 		ldw a0, T_X(zero)				# anchor x coordinate
  		ldw a1, T_Y(zero) 				# anchor y coordinate
+		add a2, zero, s1				# the collision
+
+		call incrementOrDecrement		# will change the value of x and y accordingly
+
 		call in_gsa
-		bne v0,zero,collision_exist		# would be out of gsa so collision
+		bne v0, zero, collision_exist	# would be out of gsa so collision
 
 		ldw a0, T_X(zero)				# putting back the arguments because they are caller-saved
  		ldw a1, T_Y(zero) 			
+		add a2, zero, s1
+
+		call incrementOrDecrement
+
 		call get_gsa
-		bne v0,zero,collision_exist
+		addi t0, zero, PLACED
+		beq v0, t0, collision_exist
 
-		addi t3,s3,12					# loop limit for iterating over tetrominoes
+		addi s0, s3, 12					# loop limit for iterating over tetrominoes
 
-	loop_overlap:                       # this loop checks if the current tetrominoes moved in the given direction provock a collision
-		beq s3,t3, no_collision
+	loop_collision:                     # this loop checks if the current tetrominoes moved in the given direction provock a collision
+		beq s3, s0, no_collision
 		ldw t1, 0(s3) 					# offset in array for x axis
 		ldw t2, 0(s4)					# offset in array for y axis
 		ldw a0, T_X(zero)		 		# anchor x coordinate
  		ldw a1, T_Y(zero) 				# anchor y coordinate
-		
-		addi sp,sp,-4
-		stw t3,0(sp)					#pushing t3 on the stack because it's the loop limit
 
 		add a0, a0, t1       		 	# ao = x + offset
 		add a1, a1,t2         			# a1 = y + offset
+		add a2, zero,s1 
+
+		call incrementOrDecrement
+
 		call in_gsa
-		bne  v0,zero,collision_exist    # would be out of gsa so collision
+		bne  v0, zero, collision_exist    # would be out of gsa so collision
 
-
-		ldw t1, 0(s3) 					# offset in array for x axis
-		ldw t2, 0(s4)					# offset in array for y axis
-		ldw a0, T_X(zero)		 		# anchor x coordinate
- 		ldw a1, T_Y(zero) 				# anchor y coordinate
-		add a0, a0, t1       		 	# ao = x + offset
-		add a1, a1,t2         			# a1 = y + offset
-		
-		call get_gsa
-		bne v0,zero,collision_exist     # the gsa is already occupied
-		addi s3,s3,4
-        addi s4,s4,4
-
-		ldw t3,0(sp)
-		addi sp,sp,4		#popping t3 off the stack
-
-		br loop_overlap
-
-
-
-	west:
-		ldw a0, T_X(zero)		 		# anchor x coordinate
- 		ldw a1, T_Y(zero) 				# anchor y coordinate
-		addi a0,a0,-1       			# decrementing the x coordinate  because W_COL
-		call in_gsa
-		bne v0,zero,collision_exist     # would be out of gsa so collision
-
-		ldw a0, T_X(zero)		 		# anchor x coordinate
- 		ldw a1, T_Y(zero) 				# anchor y coordinate
-		addi a0,a0,-1       			# decrementing the x coordinate  because W_COL
-
-		call get_gsa
-		bne v0,zero,collision_exist
-		addi t3,s3,12 					# loop limit for iterating over tetrominoes
-
-	loop_west:                          # this loop checks if the current tetrominoes moved in the given direction provock a collision
-		beq s3,t3, no_collision
-		ldw t1, 0(s3) 					# offset in array for x axis
-		ldw t2, 0(s4) 					# offset in array for y axis
-		ldw a0, T_X(zero)		 		# anchor x coordinate
- 		ldw a1, T_Y(zero)		 		# anchor y coordinate
-
-		addi sp,sp,-4
-		stw t3,0(sp)					#pushing t3 on the stack because it's the loop limit
-
-		add a0, a0, t1       	 		# ao = x + offset
-		add a1, a1,t2        	 		# a1 = y + offset
-		addi a0,a0,-1           		# decrementing the y coordinate  because W_COL
-		call in_gsa
-		bne  v0,zero,collision_exist    # would be out of gsa so collision
 
 		ldw t1, 0(s3) 					# offset in array for x axis
 		ldw t2, 0(s4)					# offset in array for y axis
 		ldw a0, T_X(zero)		 		# anchor x coordinate
  		ldw a1, T_Y(zero) 				# anchor y coordinate
 		add a0, a0, t1       		 	# ao = x + offset
-		add a1, a1,t2         			# a1 = y + offset
-		addi a0,a0,-1           		# decrementing the y coordinate  because W_COL
+		add a1, a1, t2         			# a1 = y + offset
+		add a2, zero, s1 
 
-		call get_gsa
-		bne v0,zero,collision_exist     # the gsa is already occupied
-		addi s3,s3,4
-        addi s4,s4,4
+		call incrementOrDecrement
 
-		ldw t3,0(sp)
-		addi sp,sp,4		#popping t3 off the stack
-
-		br loop_west
-
-
-
-	east:
-		ldw a0, T_X(zero) 				# anchor x coordinate
- 		ldw a1, T_Y(zero) 				# anchor y coordinate
-		addi a0,a0,1       				# incrementing the x coordinate  because E_COL
-		call in_gsa
-		bne v0,zero,collision_exist     # would be out of gsa so collision
-
-		ldw a0, T_X(zero) 				# anchor x coordinate
- 		ldw a1, T_Y(zero) 				# anchor y coordinate
-		addi a0,a0,1       				# incrementing the x coordinate  because E_COL
 		
 		call get_gsa
-		bne v0,zero,collision_exist
-		addi t3,s3,12 					# loop limit for iterating over tetrominoes
 
-	loop_east:                          # this loop checks if the current tetrominoes moved in the given direction provock a collision
-		beq s3,t3, no_collision
-		ldw t1, 0(s3) 					# offset in array for x axis
-		ldw t2, 0(s4)	 				# offset in array for y axis
-		ldw a0, T_X(zero)	 			# anchor x coordinate
- 		ldw a1, T_Y(zero)		 		# anchor y coordinate
+		addi t0, zero, PLACED
+		beq v0, t0, collision_exist
 
-		addi sp,sp,-4
-		stw t3,0(sp)					#pushing t3 on the stack because it's the loop limit
+		addi s3, s3, 4
+        addi s4, s4, 4
 
-		add a0, a0, t1        			# ao = x + offset
-		add a1, a1,t2        	 		# a1 = y + offset
-		addi a0,a0,1           			# incrementing the y coordinate  because E_COL
-		call in_gsa
-		bne  v0,zero,collision_exist    # would be out of gsa so collision
-
-		ldw t1, 0(s3) 					# offset in array for x axis
-		ldw t2, 0(s4)					# offset in array for y axis
-		ldw a0, T_X(zero)		 		# anchor x coordinate
- 		ldw a1, T_Y(zero) 				# anchor y coordinate
-		add a0, a0, t1       		 	# ao = x + offset
-		add a1, a1,t2         			# a1 = y + offset
-		addi a0,a0,1           	 		# incrementing the y coordinate  because E_COL
-
-
-		call get_gsa
-		bne v0,zero,collision_exist     # the gsa is already occupied
-		addi s3,s3,4
-        addi s4,s4,4
-
-		ldw t3,0(sp)
-		addi sp,sp,4		#popping t3 off the stack
-
-		br loop_east
-
-
-	south:
-		ldw a0, T_X(zero) 				# anchor x coordinate
- 		ldw a1, T_Y(zero) 				# anchor y coordinate
-		addi a1,a1,1       				# incrementing the y coordinate  because SO_COL
-		call in_gsa
-		bne v0,zero,collision_exist     # would be out of gsa so collision
-
-		ldw a0, T_X(zero) 				# anchor x coordinate
- 		ldw a1, T_Y(zero) 				# anchor y coordinate
-		addi a1,a1,1       				# incrementing the y coordinate  because SO_COL
-
-		call get_gsa
-		bne v0,zero,collision_exist
-		addi t3,s3,12 					# loop limit for iterating over tetrominoes
-
-	loop_south:                         # this loop checks if the current tetrominoes moved in the given direction provock a collision
-		beq s3,t3, no_collision
-		ldw t1, 0(s3) 					# offset in array for x axis
-		ldw t2, 0(s4) 					# offset in array for y axis
-		ldw a0, T_X(zero) 				# anchor x coordinate
- 		ldw a1, T_Y(zero)		 		# anchor y coordinate
-
-		addi sp,sp,-4
-		stw t3,0(sp)					#pushing t3 on the stack because it's the loop limit
-
-		add a0, a0, t1        			# ao = x + offset
-		add a1, a1,t2         			# a1 = y + offset
-		addi a1,a1,1           			# incrementing the y coordinate  because SO_COL
-		call in_gsa
-		bne  v0,zero,collision_exist    # would be out of gsa so collision
-
-			ldw t1, 0(s3) 					# offset in array for x axis
-		ldw t2, 0(s4)					# offset in array for y axis
-		ldw a0, T_X(zero)		 		# anchor x coordinate
- 		ldw a1, T_Y(zero) 				# anchor y coordinate
-		add a0, a0, t1       		 	# ao = x + offset
-		add a1, a1,t2         			# a1 = y + offset
-		addi a1,a1,1           			# incrementing the y coordinate  because SO_COL
-
-		call get_gsa
-		bne v0,zero,collision_exist     # the gsa is already occupied
-		addi s3,s3,4
-        addi s4,s4,4
-
-		ldw t3,0(sp)
-		addi sp,sp,4		#popping t3 off the stack
-
-		br loop_south
-
+		br loop_collision
 
 	collision_exist:
+		add v0, zero, s1 		# the collision exists so we return the input
+		br return_collision
 
-		add v0,zero,s1 		# the collision exists so we return the input
-        ldw s4,16(sp)
-		ldw s2,12(sp)
+	no_collision:
+        addi v0, zero, NONE  	# the collison doesn't exist so we return NONE
+	
+	return_collision:
+		ldw s5, 24(sp)
+		ldw s4, 20(sp)
+        ldw s3, 16(sp)
+		ldw s2, 12(sp)
 		ldw s1, 8(sp)
-		ldw s3, 4(sp)
+		ldw s0, 4(sp)
 		ldw ra, 0(sp)
-		addi sp,sp,20
+		addi sp,sp,28
 		ret
-
-   no_collision:
-
-    	ldw s4,16(sp)
-		ldw s2,12(sp)
-		ldw s1, 8(sp)
-		ldw s3, 4(sp)
-		ldw ra, 0(sp)
-		addi sp,sp,20
-        addi v0,zero,NONE  	# the collison doesn't exist so we return NONE
-		ret
-
-
-
 ; END:detect_collision
+
+
+; BEGIN:helper
+incrementOrDecrement:
+# a0 is the x coordinate
+# a1 is the y coordinate
+# a2 is the type of collision
+
+addi t0, zero, E_COL
+addi t1, zero, W_COL
+addi t2, zero, So_COL
+addi t3, zero, OVERLAP
+
+beq a2, t0, east
+beq a2, t1, west
+beq a2, t2, south
+beq a2, t3, nothing_left
+
+east:
+addi a0, a0, 1
+br nothing_left
+
+west: 
+addi a0, a0, -1
+br nothing_left
+
+south:
+addi a1 ,a1, 1
+br nothing_left
+
+nothing_left:
+ret
+; END:helper
 
 ; BEGIN:rotate_tetromino
 rotate_tetromino:
 # the idea is to decrement if left rotation else increment 
 # the current orientation, and then masking the last 2 bits
-	addi t4,zero, rotL
+	addi t4, zero, rotL
 	ldw t5, T_orientation(zero)
-	andi t5,t5,0x3
-	beq a0,t4,left
+	andi t5, t5, 0x3
+	beq a0, t4, left
+
 	right:
-	addi t5,t5,1
+	addi t5, t5, 1
 	br back
+
 	left:
-	addi t5,t5,-1
+	addi t5, t5, -1
+
 	back:
-	andi t5,t5,0x3
+	andi t5, t5, 0x3
 	stw t5, T_orientation(zero)
 	ret
 ; END:rotate_tetromino
 
 ; BEGIN:act
 act:
-	addi sp,sp,-16
+	addi sp, sp, -16
 	stw ra, 0(sp)
 	stw s0, 4(sp)
 	stw s1, 8(sp)
 	stw s2, 12(sp)  		# stack looks like : top -> ra/s0/s1/s2
 
-	addi t0,zero,moveL
-	addi t1, zero,rotL
-	addi t2,zero,reset
+	addi t0, zero, moveL
+	addi t1, zero, rotL
+	addi t2, zero, reset
 	addi t3, zero, rotR
-	addi t4,zero, moveR
-	addi t5,zero, moveD
+	addi t4, zero, moveR
+	addi t5, zero, moveD
 	
 	beq a0,t0,leftmove
 	beq a0,t1,rotate
@@ -659,20 +530,20 @@ rightmove:
 	addi s0,zero, E_COL
 	addi a0, zero, E_COL
 	call detect_collision
-	beq s0,v0,unchanged
-	ldw t1,T_X(zero)
-	addi t1,t1,1
-	stw t1,T_X(zero)
+	beq s0, v0, unchanged
+	ldw t1, T_X(zero)
+	addi t1, t1, 1
+	stw t1, T_X(zero)
 	br changed
 
 downmove:
-	addi s0,zero, So_COL
+	addi s0, zero, So_COL
 	addi a0, zero, So_COL
 	call detect_collision
-	beq s0,v0,unchanged
-	ldw t1,T_Y(zero)
-	addi t1,t1,1
-	stw t1,T_Y(zero)
+	beq s0, v0, unchanged
+	ldw t1, T_Y(zero)
+	addi t1, t1, 1
+	stw t1, T_Y(zero)
 	br changed
 
 
@@ -758,77 +629,78 @@ reboot:
 
 ; BEGIN:get_input
 get_input:
-
-	ldw	 t0,BUTTONS+4(zero)		#to stores edgecapture (edgecapture is at BUTTON+4)
-	andi t0,t0,31			#we want only the last 5 bits
-	add t4,zero,zero		#bit counter 
+	ldw	 t0,BUTTONS+4(zero)		# t0 stores edgecapture (edgecapture is at BUTTON+4)
+	andi t0, t0, 31				# we want only the last 5 bits
+	add t4, zero, zero			# bit counter 
 	
 tom_loop:
-	beq t0,zero,no_input_back
-	andi t1,t0,1
-	bne t1,zero,yes_input_back
-	srli t0,t0,1
-	addi t4,t4,1
+	beq t0, zero, no_input_back		# if (no more bits) stop
+	andi t1, t0, 1					# else t1 = last bit of t0
+	bne t1, zero, yes_input_back	# if (bit set to 1) return corresponding action
+	srli t0, t0, 1
+	addi t4, t4, 1					# prepare next bit of t0 and increment counter
 	br tom_loop
 
 yes_input_back:
-	addi v0,zero,1
-	sll  v0,v0,t4
-	stw zero,BUTTONS+4(zero)
-	ret
+	addi v0, zero, 1
+	sll v0, v0, t4
+	br end_get_input
 
 no_input_back:
-	add v0,zero,zero
-	stw zero,BUTTONS+4(zero)
+	add v0, zero, zero
+
+end_get_input:
+	stw zero, BUTTONS+4(zero)
+
 	ret
-
-
 ; END:get_input
 
 ; BEGIN:detect_full_line
 detect_full_line:
-	addi sp, sp, -16
+	addi sp, sp, -24
 	stw s0, 0(sp)
 	stw s1, 4(sp)
 	stw s2, 8(sp)
-	stw ra, 12(sp)
-	addi s0, zero, 1
-	addi s1, zero, 7
-	addi s2, zero, 11
+	stw s3, 12(sp)
+	stw s4, 16(sp)
+	stw ra, 20(sp)
+	addi s0, zero, PLACED	# s0 = PLACED
+	add s1, zero, zero		# s1 = x
+	add s2, zero, zero		# s2 = y
+	addi s3, zero, 12		# s3 = x max
+	addi s4, zero, 8		# s4 = y max
 	
 	loop_full_line:
-		add a0, zero, s2
-		add a1, zero, s1
+		add a0, zero, s1
+		add a1, zero, s2
 		call get_gsa
-		and s0, s0, v0
-		addi s2, s2, -1
-		bge s2, zero, loop_full_line
-		
+		and s0, s0, v0					# s0 = is v0 PLACED
+		addi s1, s1, 1
+		blt s1, s3, loop_full_line		# loop while(x < 12)
+	
 		next_y_full_line:
-			bne s0, zero, happy_ending
-			addi s0, zero, 1
-			addi s2, zero, 11
-			addi s1, s1, -1
-			bge s1, zero, loop_full_line
+			bne s0, zero, happy_ending	# if (whole line is PLACED) return it was detected
+			addi s0, zero, 1			# else s0 = PLACED
+			add s1, zero, zero			# x = 0
+			addi s2, s2, 1				# y += 1
+			blt s2, s4, loop_full_line	# loop while (y < 8)
 
 		epic_loss:
 			addi v0, zero, 8
-			ldw s0, 0(sp)
-			ldw s1, 4(sp)
-			ldw s2, 8(sp)
-			ldw ra, 12(sp)
-			addi sp, sp, 16
-
-			ret
+			br end_detect_full_line
+	
 		happy_ending:
-			add v0, zero, s1
-			ldw s0, 0(sp)
-			ldw s1, 4(sp)
-			ldw s2, 8(sp)
-			ldw ra, 12(sp)
-			addi sp, sp, 16
+			add v0, zero, s2
 
-			ret		
+	ldw s0, 0(sp)
+	ldw s1, 4(sp)
+	ldw s2, 8(sp)
+	ldw s3, 12(sp)
+	ldw s4, 16(sp)
+	ldw ra, 20(sp)
+	addi sp, sp, 24
+	
+	ret		
 ; END:detect_full_line
 
 ; BEGIN:remove_full_line
@@ -843,17 +715,17 @@ remove_full_line:
 	 		
 
 	addi t0,zero,8
-	beq a0,t0, back_to_the_game   # if a0 = 8 then do nothing 
+	beq a0,t0, back_to_the_game   	# if a0 = 8 then do nothing 
 
-	add s0,zero,a0			# s0 stores the y coordinate of the line to removve		
-	addi  s2,zero,4         # blink counter
+	add s0,zero,a0					# s0 stores the y coordinate of the line to removve		
+	addi  s2,zero,4       		 	# blink counter
 blink:
 	addi s1,zero,11
 	
 off:
-	add a0,s0,zero			# x coordinate
-	add a1,s1,zero			# y coordinate
-	add a2,zero,zero		# set the line off
+	add a0,s1,zero					# x coordinate of the current gsa block
+	add a1,s0,zero					# y coordinate of the line
+	add a2,zero,zero				# set the line off
 	
 	call set_gsa
 	
@@ -868,9 +740,9 @@ off:
 	addi s1,zero,11
 
 on:
-	add a0,s0,zero			# x coordinate
-	add a1,s1,zero			# y coordinate
-	addi a2,zero,1			# set the line on
+	add a0,s1,zero					# x coordinate
+	add a1,s0,zero					# y coordinate
+	addi a2,zero,1					# set the line on
 	
 	call set_gsa
 	
@@ -884,34 +756,36 @@ on:
 	br blink
 
 make_lines_go_down:
-	add s2, zero,s0				#s2 stores the current y coordinate of the line to modifiy
-	add s1,zero,zero			#s1 stores the current x coordinate of the gsa to be modified
-	addi s3,zero,12				#s3 is the loop limit on the x coordinate
-	addi s4,zero,7				#s4 is the loop limit on the y coordinate
+	add s2, zero,s0					# s2 stores the current y coordinate of the line to modifiy
+	add s1,zero,zero				# s1 stores the current x coordinate of the gsa to be modified
+	addi s3,zero,12					# s3 is the loop limit on the x coordinate
+	addi s4,zero,1					# s4 is the loop limit on the y coordinate
 
 
 
 	
- move_line_down :
+ move_line_down:
 	beq s2,s4,back_to_the_game
-	add s1,zero,zero   # reset the x coordinate
+	add s1,zero,zero   				# reset the x coordinate
 
 	loop_over_gsa:
 		beq s1,s3,cont2
-		add a0,s1,zero  #a0 = x coordinate
-		addi a1,s2,1     #a1 = y + 1
+		add a0,s1,zero  			# a0 = x coordinate
+		addi a1,s2,-1     			# a1 = y - 1
 		call get_gsa
-		addi t0,t0,FALLING     
-		beq v0,t0,cont1  # checking if FALLING
-		add a0,s1,zero  #a0 = x coordinate
-		add a1,s2,zero     #a1 = y
-		add a2,v0,zero    # a2 = element on top of (x,y)
+
+		andi v0,v0,1      			# forcing v0 to be either NOTHING OR PLACED
+
+		add a0,s1,zero  			# a0 = x coordinate
+		add a1,s2,zero     			# a1 = y coordinate
+		add a2,v0,zero    			# a2 = element on top of (x,y)
 		call set_gsa
+
 	cont1: 
-	addi s1,s1,1
-	br loop_over_gsa
+	addi s1,s1,1      				# incrementing the x coordinate
+	br loop_over_gsa   
 	cont2:
-	addi s2,s2,1
+	addi s2,s2,-1     				# moving up the gsa array
 	br move_line_down
 
 
@@ -931,10 +805,10 @@ back_to_the_game:
 ; BEGIN:increment_score
 increment_score:
 	ldw t0, SCORE(zero)
-	addi t1, zero, 999
+	addi t1, zero, 9999
 	addi t0, t0, 1
 
-	bge t0, t1, ceiling		# if (SCORE+1 ≥ 999) SCORE = 999
+	bge t0, t1, ceiling		# if (SCORE+1 ≥ 9999) SCORE = 9999
 	stw t0, SCORE(zero)
 	ret
 
@@ -945,65 +819,63 @@ increment_score:
 
 ; BEGIN:display_score
 display_score:
-	ldw t0, SCORE(zero)
-	add t1, t0, zero		
-	add t2, t0, zero		# t0 ... t2 = SCORE
-	add t3, zero, zero		# t3 = digit 1
-	add t4, zero, zero		# t4 = digit 2
-	addi t5, zero, 9		# t5 = i
-
-	addi t6, zero, 10
-	addi t7, zero, 100
+	ldw t0, SCORE(zero)		# t0 = SCORE
+	add t1, zero, zero		# t1 = digit 0
+	add t2, zero, zero		# t2 = digit 1
+	add t3, zero, zero		# t3 = digit 2
+	add t4, zero, zero		# t4 = digit 3
 	
 	get_digits:
-		isolate_d0:
-			blt t0, t6, isolate_d1
-			sub t0, t0, t6				# t0 -= 10
-			br isolate_d0
-		isolate_d1:
-			blt t1, t7, isolate_d2
-			sub t1, t1, t7				# t1 -= 100
-			br isolate_d1
-		isolate_d2:
-			sub t1, t1, t0				# t1 = t1 - t0
-			sub t2, t2, t0			
-			sub t2, t2, t1				# t2 = t2 - t1 - t0
+		add a0, zero, t0
+		addi a1, zero, 1000
+		call deci_divide
+		add t4, v0, zero
 		
-		compute_d1:
-			blt t1,zero, compute_d2
-			addi t1, t1, -10				# t3 = nbr times 10 can be retrieved from t1
-			addi t3, t3, 1
-			br compute_d1
-		compute_d2:
-			blt t2,zero, digits_assign
-			addi t2, t2, -100
-			addi t4, t4, 1					# t4 = nbr times 100 can be retrieved from t2
-			br compute_d2
+		add a0, zero, v1
+		addi a1, zero, 100
+		call deci_divide
+		add t3, v0, zero
+
+		add a0, zero, v1
+		addi a1, zero, 10
+		call deci_divide
+		add t2, v0, zero
+		add t1, v1, zero
 	
 	digits_assign:
-		blt t5, zero, end_display_score		# end if i < 0
-		slli t7, t5, 2
-		ldw t6, font_data(t7)				# t6 = font_data(i*4)
+		slli t1, t1, 2
+		slli t2, t2, 2
+		slli t3, t3, 2
+		slli t4, t4, 2
 
-		bne t0, t5, assign_d1				# if (t0 == i)
-		stw t6, SEVEN_SEGS+12(zero)			# SEVEN_SEGS[3] = i
-		assign_d1:
-		bne t3, t5, assign_d2				# if (t3 == i)
-		stw t6, SEVEN_SEGS+8(zero)			# SEVEN_SEGS[2] = i
-		assign_d2:
-		bne t4, t5, next_assign				# id (t4 == i)
-		stw t6, SEVEN_SEGS+4(zero)			# SEVEN_SEGS[1] = i
+		ldw t1, font_data(t1)
+		ldw t2, font_data(t2)
+		ldw t3, font_data(t3)
+		ldw t4, font_data(t4)
 		
-		next_assign:
-		addi t5, t5, -1						
-		br digits_assign			
-		
-	end_display_score:
-		ldw t6, font_data(zero)
-		stw t6, SEVEN_SEGS(zero)			# SEVEN_SEGS[0] = 0
+		stw t1, SEVEN_SEGS+12(zero)
+		stw t2, SEVEN_SEGS+8(zero)
+		stw t3, SEVEN_SEGS+4(zero)
+		stw t4, SEVEN_SEGS(zero)
+
 		ret
 		
 ; END:display_score
+; BEGIN:helper
+# a0 : the numerator
+# a1 : the denominator
+# v0 : the quotient
+# v1 : the remainder
+deci_divide:
+	add v0, zero, zero
+	loop_deci_divide:
+		blt a0, a1, end_deci_divide
+		sub a0, a0, a1
+		addi v0, v0, 1
+		br loop_deci_divide
+	end_deci_divide:
+		ret
+; END:helper
 
 ; BEGIN:reset_game
 reset_game:
