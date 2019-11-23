@@ -820,6 +820,8 @@ increment_score:
 
 ; BEGIN:display_score
 display_score:
+	addi sp, sp, -4
+	stw ra, 0(sp)
 	ldw t0, SCORE(zero)		# t0 = SCORE
 	add t1, zero, zero		# t1 = digit 0
 	add t2, zero, zero		# t2 = digit 1
@@ -859,6 +861,8 @@ display_score:
 		stw t3, SEVEN_SEGS+4(zero)
 		stw t4, SEVEN_SEGS(zero)
 
+		ldw ra, 0(sp)
+		addi sp, sp, 4
 		ret
 		
 ; END:display_score
