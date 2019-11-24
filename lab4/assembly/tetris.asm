@@ -734,8 +734,8 @@ remove_full_line:
 	addi t0,zero,8
 	beq a0,t0, back_to_the_game   	# if a0 = 8 then do nothing 
 
-	add s0,zero,a0					# s0 stores the y coordinate of the line to removve		
-	addi  s2,zero,4       		 	# blink counter
+	add s0, zero, a0				# s0 stores the y coordinate of the line to remove		
+	addi s2, zero, 4       		 	# blink counter
 blink:
 	addi s1,zero,11
 	
@@ -748,12 +748,12 @@ off:
 	
 	addi s1,s1,-1			
 	cmplt t7,s1,zero	
-	bne t7,zero,off
+	beq t7,zero,off
 
 	call draw_gsa
 	call wait
 	addi s2,s2,-1
-	beq s2,zero,make_lines_go_down
+	blt s2,zero,make_lines_go_down
 	addi s1,zero,11
 
 on:
@@ -765,7 +765,7 @@ on:
 	
 	addi s1,s1,-1			
 	cmplt t7,s1,zero	
-	bne t7,zero,on
+	beq t7,zero,on
 
 	call draw_gsa
 	call wait
@@ -895,7 +895,7 @@ deci_divide:
 		addi v0, v0, 1
 		br loop_deci_divide
 	end_deci_divide:
-		add v1, zero, a0
+		add v1,zero,a0
 		ret
 ; END:helper
 
