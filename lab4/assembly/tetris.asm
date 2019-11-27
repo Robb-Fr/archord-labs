@@ -1,4 +1,4 @@
-  ;; game state memory location
+ ;; game state memory location
   .equ T_X, 0x1000                  ; falling tetrominoe position on x
   .equ T_Y, 0x1004                  ; falling tetrominoe position on y
   .equ T_type, 0x1008               ; falling tetrominoe type
@@ -142,7 +142,6 @@ main:
 		br main
 ; END:main
 	
-
 ; BEGIN:clear_leds
 clear_leds:
 	stw zero, LEDS(zero)
@@ -173,12 +172,12 @@ set_pixel:
 
 ; BEGIN:wait
 wait:
-	addi a0, zero, 0x1
-	slli a0, a0, 20				# sets the 20th bit to 1 in order to have 2^20
+	addi t0, zero, 0x1
+	slli t0, t0, 20				# sets the 20th bit to 1 in order to have 2^20
 
 	count_down:
-		addi a0, a0, -1 			# decrement argument by 1
-		bne a0, zero, count_down	# compare a0 to 0 and restart if not equal
+		addi t0, t0, -1 			# decrement argument by 1
+		bne t0, zero, count_down	# compare a0 to 0 and restart if not equal
 
 	ret
 ; END:wait
@@ -454,39 +453,6 @@ detect_collision:
 		addi sp,sp,28
 		ret
 ; END:detect_collision
-
-
-; BEGIN:helper
-incrementOrDecrement:
-# a0 is the x coordinate
-# a1 is the y coordinate
-# a2 is the type of collision
-
-addi t0, zero, E_COL
-addi t1, zero, W_COL
-addi t2, zero, So_COL
-addi t3, zero, OVERLAP
-
-beq a2, t0, east
-beq a2, t1, west
-beq a2, t2, south
-beq a2, t3, nothing_left
-
-east:
-addi a0, a0, 1
-br nothing_left
-
-west: 
-addi a0, a0, -1
-br nothing_left
-
-south:
-addi a1 ,a1, 1
-br nothing_left
-
-nothing_left:
-ret
-; END:helper
 
 ; BEGIN:rotate_tetromino
 rotate_tetromino:
@@ -882,22 +848,6 @@ display_score:
 		ret
 		
 ; END:display_score
-; BEGIN:helper
-# a0 : the numerator
-# a1 : the denominator
-# v0 : the quotient
-# v1 : the remainder
-deci_divide:
-	add v0, zero, zero
-	loop_deci_divide:
-		blt a0, a1, end_deci_divide
-		sub a0, a0, a1
-		addi v0, v0, 1
-		br loop_deci_divide
-	end_deci_divide:
-		add v1,zero,a0
-		ret
-; END:helper
 
 ; BEGIN:reset_game
 reset_game:
@@ -949,6 +899,56 @@ reset_game:
 	
 	ret
 ; END:reset_game
+
+; BEGIN:helper
+# a0 : the numerator
+# a1 : the denominator
+# v0 : the quotient
+# v1 : the remainder
+deci_divide:
+	add v0, zero, zero
+	loop_deci_divide:
+		blt a0, a1, end_deci_divide
+		sub a0, a0, a1
+		addi v0, v0, 1
+		br loop_deci_divide
+	end_deci_divide:
+		add v1,zero,a0
+		ret
+
+incrementOrDecrement:
+# a0 is the x coordinate
+# a1 is the y coordinate
+# a2 is the type of collision
+
+addi t0, zero, E_COL
+addi t1, zero, W_COL
+addi t2, zero, So_COL
+addi t3, zero, OVERLAP
+
+beq a2, t0, east
+beq a2, t1, west
+beq a2, t2, south
+beq a2, t3, nothing_left
+
+east:
+addi a0, a0, 1
+br nothing_left
+
+west: 
+addi a0, a0, -1
+br nothing_left
+
+south:
+addi a1 ,a1, 1
+br nothing_left
+
+nothing_left:
+ret
+
+; END:helper
+
+
 
 
 
