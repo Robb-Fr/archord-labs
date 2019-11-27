@@ -63,6 +63,7 @@
   .equ X_LIMIT, 12
   .equ Y_LIMIT, 8
 
+
 ; BEGIN:main
 main:
 	addi sp, zero, 0x1FFC
@@ -949,8 +950,6 @@ reset_game:
 	
 	ret
 ; END:reset_game
-
-
 
 font_data:
     .word 0xFC  ; 0
